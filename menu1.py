@@ -1,6 +1,7 @@
 import re
 import ast
-from KUCinema import CURRENT_DATE_STR, MOVIE_FILE, info, error, home_path
+from KUCinema import MOVIE_FILE, info, error, home_path
+import core
 
 # ---------------------------------------------------------------
 # 6.4.1 날짜 선택
@@ -13,7 +14,7 @@ def select_date() -> str | None:
     - '0' 입력 시 None 반환 (주 프롬프트 복귀)
     """
 
-    if CURRENT_DATE_STR is None:
+    if core.CURRENT_DATE_STR is None:
         error("내부 현재 날짜가 설정되어 있지 않습니다.")
         return None
 
@@ -30,7 +31,7 @@ def select_date() -> str | None:
         if len(parts) < 5:
             continue
         _, _, movie_date, _, _ = parts
-        if movie_date > CURRENT_DATE_STR and movie_date not in dates:
+        if movie_date > core.CURRENT_DATE_STR and movie_date not in dates:
             dates.append(movie_date)
 
     # 3️. 날짜 정렬 및 최대 9개 제한
@@ -188,5 +189,44 @@ def input_people(selected_movie: dict) -> int | None:
 
 def menu1():
     print("menu1")
+    """
+    6.4 영화 예매 기능 전체 흐름 제어 함수
+    날짜 선택(6.4.1) → 영화 선택(6.4.2) → 인원 수 입력(6.4.3) 순으로 실행.
+    각 단계에서 '0' 입력 시 상위 단계로 복귀.
+    """
+    if core.LOGGED_IN_SID is None:
+        error("로그인 정보가 없습니다. 주 프롬프트로 돌아갑니다.")
+        return
+
+    # -------------------------------
+    # 6.4.1 날짜 선택
+    # -------------------------------
+    selected_date = select_date()
+    if selected_date is None:
+        info(">> 주 프롬프트로 돌아갑니다.")
+        return
+
+    # -------------------------------
+    # 6.4.2 영화 선택
+    # -------------------------------
+    selected_movie = select_movie(selected_date)
+    if selected_movie is None:
+        # 날짜 선택으로 복귀
+        return menu1()  # 사용자가 뒤로 가기를 선택했을 때
+
+    # -------------------------------
+    # 6.4.3 인원 수 입력
+    # -------------------------------
+    num_people = input_people(selected_movie)
+    if num_people is None:
+        # 영화 선택으로 복귀
+        return menu1()
+
+    # -------------------------------
+    # 6.4.4 좌석 입력 (다음 단계에서 구현 예정)
+    # -------------------------------
+    info(f">> {num_people}명 좌석 선택 단계로 이동합니다. (6.4.4 좌석 입력 예정)")
+    # TODO: implement input_seats(selected_movie, num_people)
+    pass
     pass
 
