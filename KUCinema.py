@@ -1,3 +1,4 @@
+from __future__ import annotations
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
@@ -22,7 +23,10 @@ KU 영화 예매 프로그램 — KUCinema.py
 Python 3.11 표준 라이브러리만 사용합니다.
 """
 
-from __future__ import annotations
+"""
+    github 사용법은 노션에
+"""
+
 
 import os
 import sys
@@ -529,12 +533,16 @@ def main() -> None:
             # 정상 로그인
             LOGGED_IN_SID = sid
             info(f"환영합니다, {LOGGED_IN_SID}님! 주 프롬프트로 이동합니다.")
+            core.LOGGED_IN_SID = sid
+            core.CURRENT_DATE_STR = CURRENT_DATE_STR
             break
         else:
             # 신규 회원 → 6.2.4
             prompt_password_new(student_path, sid, students)
             LOGGED_IN_SID = sid
             info(f"환영합니다, {LOGGED_IN_SID}님! 주 프롬프트로 이동합니다.")
+            core.LOGGED_IN_SID = sid
+            core.CURRENT_DATE_STR = CURRENT_DATE_STR
             break
 
     # 3) 6.3 — 주 프롬프트
