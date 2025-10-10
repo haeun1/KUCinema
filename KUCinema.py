@@ -22,10 +22,6 @@ KU 영화 예매 프로그램 — KUCinema.py
 Python 3.11 표준 라이브러리만 사용합니다.
 """
 
-"""
-    github 사용법은 노션에
-"""
-
 from __future__ import annotations
 
 import os
@@ -33,7 +29,9 @@ import sys
 import re
 from pathlib import Path
 from datetime import date
-from typing import Dict, Tuple
+from typing import Dict, Tuple, List
+from collections import defaultdict
+
 
 # ---------------------------------------------------------------
 # 상수 정의
@@ -47,6 +45,13 @@ RE_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")          # YYYY-MM-DD
 RE_STUDENT_ID = re.compile(r"^\d{2}$")                  # 2자리 숫자
 RE_PASSWORD = re.compile(r"^\d{4}$")                   # 4자리 숫자
 RE_STUDENT_RECORD = re.compile(r"^(?P<sid>\d{2})/(?P<pw>\d{4})$")  # 학생 레코드 형식
+RE_MOVIE_ID = re.compile(r"^\d{12}$")                   # YYYYMMDDHHMM
+RE_TIME = re.compile(r"^\d{2}:\d{2}-\d{2}:\d{2}$")      # HH:MM-HH:MM
+RE_TITLE = re.compile(r"^(?!\s)(?!.*\s$)[0-9A-Za-z가-힣 ]+$")  # 특수문자 제외, 앞뒤 공백 금지
+RE_SEAT_VECTOR = re.compile(r"^\[(?:\s*[01]\s*,){24}\s*[01]\s*\]$")  # 길이 25의 0/1
+RE_BOOKING_RECORD = re.compile(
+    r"^(?P<sid>\d{2})/(?P<mid>\d{12})/(?P<vec>\[(?:\s*[01]\s*,){24}\s*[01]\s*\])$"
+)
 
 # 전역 상태 (필수 컨텍스트)
 CURRENT_DATE_STR: str | None = None  # 내부 현재 날짜(문자열, YYYY-MM-DD)
@@ -71,7 +76,11 @@ def error(msg: str) -> None:
 # ---------------------------------------------------------------
 def home_path() -> Path:
     #hp = Path(os.path.expanduser("~")).resolve() # 홈 경로 반환
-    
+    # try:
+    #     hp = Path(os.path.expanduser("~")).resolve()  # 홈 경로 반환
+    # except Exception as e:
+    #     error(f"홈 경로를 파악할 수 없습니다: {e}")
+    #     sys.exit(1)
     # 배포하기 전은 현재 경로인 KUCinema.py 파일의 경로를 반환
     hp = Path(os.getcwd())
     #print("현재 경로:", os.getcwd())
@@ -123,6 +132,12 @@ def ensure_environment() -> Tuple[Path, Path, Path]:
         except Exception as e:
             error(f"'{BOOKING_FILE}' 파일 생성 실패: {e}")
             sys.exit(1)
+    else:
+        try:
+            _ = booking_path.read_text(encoding="utf-8")
+        except Exception as e:
+            error(f"'{BOOKING_FILE}' 파일을 읽을 수 없습니다: {e}")
+            sys.exit(1)
 
     return movie_path, student_path, booking_path
 
@@ -164,6 +179,168 @@ def load_and_validate_students(student_path: Path) -> Dict[str, str]:
         sys.exit(1)
 
     return students
+
+# ---------------------------------------------------------------
+# 영화 데이터 파일 무결성 체크 
+# ---------------------------------------------------------------
+
+def _parse_time_bounds(t: str) -> Tuple[int, int]:
+    sh, sm, eh, em = int(t[0:2]), int(t[3:5]), int(t[6:8]), int(t[9:11])
+    return sh * 60 + sm, eh * 60 + em
+
+def _valid_movie_time(s: str) -> bool:
+    if not RE_TIME.fullmatch(s):
+        return False
+    sh, sm = int(s[0:2]), int(s[3:5])
+    eh, em = int(s[6:8]), int(s[9:11])
+    if not (0 <= sh <= 23 and 0 <= sm <= 59):
+        return False
+    if not (0 <= eh <= 99 and 0 <= em <= 59):
+        return False
+    start_min, end_min = _parse_time_bounds(s)
+    return end_min > start_min  # 종료는 시작+1분 이상
+
+def _valid_movie_id(mid: str) -> bool:
+    if not RE_MOVIE_ID.fullmatch(mid):
+        return False
+    yyyy = int(mid[0:4]); mm = int(mid[4:6]); dd = int(mid[6:8])
+    hh = int(mid[8:10]); m2 = int(mid[10:12])
+    if yyyy < 1583:
+        return False
+    try:
+        date(yyyy, mm, dd)
+    except ValueError:
+        return False
+    return 0 <= hh <= 23 and 0 <= m2 <= 59
+
+def _valid_title(title: str) -> bool:
+    return RE_TITLE.fullmatch(title) is not None
+
+def _parse_seat_vector(vec: str) -> List[int] | None:
+    if not RE_SEAT_VECTOR.fullmatch(vec):
+        return None
+    body = vec.strip()[1:-1]
+    items = [x.strip() for x in body.split(",")]
+    try:
+        nums = [int(x) for x in items]
+    except ValueError:
+        return None
+    if len(nums) != 25 or any(n not in (0, 1) for n in nums):
+        return None
+    return nums
+
+def validate_movie_file(movie_path: Path) -> None:
+    """
+    영화 파일을 처음부터 끝까지 검사.
+    - 문법/의미 위배 발견 즉시 오류 출력 후 종료.
+    규칙: 5필드(mid/title/date/time/seatvec), 각 필드 문법·의미,
+          고유번호 오름차순, 중복 금지, 같은 날짜 상영 10개 이상 금지.
+    """
+    lines = movie_path.read_text(encoding="utf-8").splitlines()
+    if not lines:
+        error("영화 데이터 파일이 비어 있습니다(최소 1개 레코드 필요).")
+        sys.exit(1)
+
+    prev_id_num: int | None = None
+    seen_ids: set[str] = set()
+    daily_counts = defaultdict(int)
+
+    for i, line in enumerate(lines, start=1):
+        if line != line.strip():
+            error(f"{MOVIE_FILE}:{i}행 — 레코드 앞/뒤 공백 금지 규칙 위배.")
+            sys.exit(1)
+
+        parts = line.split("/")
+        if len(parts) != 5:
+            error(f"{MOVIE_FILE}:{i}행 — 필드 개수 오류(5개 아님).")
+            sys.exit(1)
+
+        mid, title, dstr, tstr, vec = parts
+
+        if not _valid_movie_id(mid):
+            error(f"{MOVIE_FILE}:{i}행 — 영화 상영표 고유번호 형식/의미 오류.")
+            sys.exit(1)
+
+        if not _valid_title(title):
+            error(f"{MOVIE_FILE}:{i}행 — 영화 제목 형식 오류(특수문자/앞뒤공백 금지).")
+            sys.exit(1)
+
+        if not RE_DATE.fullmatch(dstr):
+            error(f"{MOVIE_FILE}:{i}행 — 영화 날짜 문법 오류(YYYY-MM-DD).")
+            sys.exit(1)
+        y, m, d = int(dstr[0:4]), int(dstr[5:7]), int(dstr[8:10])
+        try:
+            date(y, m, d)
+        except ValueError:
+            error(f"{MOVIE_FILE}:{i}행 — 영화 날짜 의미 오류(존재하지 않는 날짜).")
+            sys.exit(1)
+
+        if int(mid[0:4]) != y:
+            error(f"{MOVIE_FILE}:{i}행 — 고유번호 연도와 영화 날짜 연도 불일치.")
+            sys.exit(1)
+
+        if not _valid_movie_time(tstr):
+            error(f"{MOVIE_FILE}:{i}행 — 영화 시간 형식/의미 오류(HH:MM-HH:MM).")
+            sys.exit(1)
+
+        if _parse_seat_vector(vec) is None:
+            error(f"{MOVIE_FILE}:{i}행 — 좌석 유무 벡터 형식 오류(길이 25의 0/1 배열).")
+            sys.exit(1)
+
+        id_num = int(mid)
+        if prev_id_num is not None and id_num <= prev_id_num:
+            error(f"{MOVIE_FILE}:{i}행 — 고유번호 오름차순 위배(이전={prev_id_num}, 현재={id_num}).")
+            sys.exit(1)
+        prev_id_num = id_num
+
+        if mid in seen_ids:
+            error(f"{MOVIE_FILE}:{i}행 — 고유번호 중복 발생({mid}).")
+            sys.exit(1)
+        seen_ids.add(mid)
+
+        daily_counts[dstr] += 1
+        if daily_counts[dstr] >= 10:
+            error(f"{MOVIE_FILE}:{i}행 — 같은 날짜({dstr}) 상영 10개 이상 규칙 위배.")
+            sys.exit(1)
+
+
+# ---------------------------------------------------------------
+# 예매 데이터 파일 무결성 체크 
+# ---------------------------------------------------------------
+
+def validate_booking_syntax(booking_path: Path) -> None:
+    """
+    예매 파일 전체 문법 검사.
+    - 위배 행들을 모두 수집해 한 번에 출력 후 종료.
+    (의미 규칙 검사는 여기서 하지 않음)
+    """
+    lines = booking_path.read_text(encoding="utf-8").splitlines()
+    bads: List[Tuple[int, str, str]] = []
+
+    for i, line in enumerate(lines, start=1):
+        if line.strip() == "":
+            bads.append((i, line, "빈 행"))
+            continue
+        if line != line.strip():
+            bads.append((i, line, "레코드 앞/뒤 공백 금지"))
+            continue
+        m = RE_BOOKING_RECORD.match(line)
+        if not m:
+            bads.append((i, line, "형식 불일치: 학번/영화고유번호/좌석예약벡터"))
+            continue
+        sid, mid, vec = m.group("sid"), m.group("mid"), m.group("vec")
+        if not RE_STUDENT_ID.fullmatch(sid):
+            bads.append((i, line, "학번 형식 오류(2자리 숫자)"))
+        if not RE_MOVIE_ID.fullmatch(mid):
+            bads.append((i, line, "영화 고유번호 형식 오류(숫자 12자리)"))
+        if _parse_seat_vector(vec) is None:
+            bads.append((i, line, "좌석 예약 벡터 형식 오류(길이 25의 0/1 배열)"))
+
+    if bads:
+        error("예매 데이터 파일에서 문법 규칙 위배 행이 발견되었습니다. 아래 행들을 확인하세요:")
+        for li, content, reason in bads:
+            print(f"  - {li}행: {content!r}  ← {reason}")
+        sys.exit(1)
 
 
 # ---------------------------------------------------------------
@@ -327,6 +504,13 @@ def main() -> None:
 
     # 0-1) 학생 파일 최소 무결성 검사
     students = load_and_validate_students(student_path)
+    
+    # 0-2) 영화 데이터 파일 무결성(문법+의미) 검사 — 위배 발견 즉시 종료
+    validate_movie_file(movie_path)
+
+    # 0-3) 예매 데이터 파일 문법 검사 — 위배 행 전부 출력 후 종료
+    validate_booking_syntax(booking_path)
+
 
     # 1) 6.1 — 날짜 입력
     CURRENT_DATE_STR = prompt_input_date()  # 내부 현재 날짜 확정
