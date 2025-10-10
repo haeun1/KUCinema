@@ -46,7 +46,7 @@ def select_date() -> str | None:
         return None
 
     for i, d in enumerate(dates, start=1):
-        print(f">> {i}) {d}")
+        print(f"{i}) {d}")
     print("0) 뒤로 가기")
 
     # 5️. 입력 로직
@@ -112,13 +112,13 @@ def select_movie(selected_date: str) -> dict | None:
     n = len(movies)
 
     # 3️. 출력
-    print(f">> {selected_date}의 상영시간표입니다.")
+    print(f"{selected_date}의 상영시간표입니다.")
     if n == 0:
         info("해당 날짜에는 상영 중인 영화가 없습니다.")
         return None
 
     for i, m in enumerate(movies, start=1):
-        print(f">> {i}) {m['date']} {m['time']} | {m['title']}")
+        print(f"{i}) {m['date']} {m['time']} | {m['title']}")
     print("0) 뒤로 가기")
 
     # 4️. 입력 루프
@@ -185,15 +185,121 @@ def input_people(selected_movie: dict) -> int | None:
         else:
             # 6.4.4로 진행
             return n
+# ---------------------------------------------------------------
+# 6.4.4 좌석 선택 단계
+# ---------------------------------------------------------------
+# ---------------------------------------------------------------
+# 기본 좌석 설정
+# ---------------------------------------------------------------
+ROWS = ["A", "B", "C", "D", "E"]
+COLS = [1, 2, 3, 4, 5]
 
+# ---------------------------------------------------------------
+# 좌석 벡터 → 버퍼 변환
+# ---------------------------------------------------------------
+def create_seat_buffer(seat_vector: list[int]) -> dict[str, int]:
+    """
+    영화의 좌석 유무 벡터(길이 25, 0/1)를 
+    {'A1':0, 'A2':1, ..., 'E5':1} 형태로 변환
+    """
+    seat_buffer = {}
+    idx = 0
+    for row in ROWS:
+        for col in COLS:
+            seat_id = f"{row}{col}"
+            seat_buffer[seat_id] = seat_vector[idx]
+            idx += 1
+    return seat_buffer
+
+
+# ---------------------------------------------------------------
+# 좌석표 출력 함수
+# ---------------------------------------------------------------
+def print_seat_board(seat_buffer: dict[str, int]) -> None:
+    """
+    좌석 버퍼를 기반으로 현재 좌석 상태를 콘솔에 시각화하여 출력
+    - '□' : 예매 가능 (0)
+    - '■' : 이미 예매됨 (1)
+    - '*' : 이번 예매에서 방금 선택한 좌석 (2)
+    """
+    print("빈 사각형은 예매 가능한 좌석입니다.")
+    print("   스크린")
+    print("  ", " ".join(str(c) for c in COLS))
+
+    for row in ROWS:
+        line = [f"{row}"]
+        for col in COLS:
+            seat_id = f"{row}{col}"
+            val = seat_buffer[seat_id]
+            if val == 0:
+                line.append("□")  # 예매 가능
+            elif val == 1:
+                line.append("■")  # 이미 예매됨
+            elif val == 2:
+                line.append("★")  # 현재 예매 중
+        print(" ", " ".join(line))
+def input_seats(selected_movie: dict, n: int) -> None:
+    """
+    6.4.4 좌석 입력
+    - 입력받은 관람 인원(n)만큼 좌석을 한 명씩 입력받는다.
+    - 좌석 문법, 예매 가능 여부, 중복 선택 검사 수행
+    - 올바른 좌석 입력 시 버퍼에 반영하고 즉시 현황 재출력
+    - 모든 인원 좌석 선택 완료 시 예매 데이터 파일 기록 후 주 프롬프트로 복귀 (기록 아직)
+    """
+    #print(f"\n〈{selected_movie['title']}〉의 좌석을 선택해주세요.")
+
+    # 1️. 좌석 벡터 불러오기
+    seat_vector = selected_movie["seats"]
+
+    # 2️. 버퍼 생성
+    seat_buffer = create_seat_buffer(seat_vector)
+
+    # 3️. 초기 좌석 현황 출력
+    print_seat_board(seat_buffer)
+    print()
+
+    # 4️. 선택 현황 초기화
+    chosen_seats = []
+    k = 0  # 현재까지 선택된 인원 수
+
+    # 5️. 좌석 입력 루프
+    while k < n:
+        s = input(f"{k + 1}번째로 예매할 좌석을 입력하세요. (예:A1): ").strip().upper()
+
+        # --- 문법 형식 위배 ---
+        if not re.fullmatch(r"[A-E][1-5]", s):
+            print("올바르지 않은 입력입니다.")
+            continue
+
+        # --- 의미 규칙 위배 --- 1. 이미 예매된 좌석 ---
+        if seat_buffer[s] == 1:
+            print("이미 예매된 좌석입니다.")
+            continue
+
+        # --- 의미 규칙 위배 --- 2. 동일 예매 흐름 내 중복 ---
+        if s in chosen_seats:
+            print("동일 좌석 중복 선택은 불가능합니다.")
+            continue
+
+         # --- 정상 입력 ---
+        seat_buffer[s] = 2  # 선택한 좌석을 '예매 중'으로 표시
+        chosen_seats.append(s)
+        k += 1
+
+        # --- 분기 ---
+        if k < n:
+            # 아직 모든 인원 좌석 미선택 - 좌석표 재출력
+            print()
+            print_seat_board(seat_buffer)
+            print()
+            continue
+        else:
+            # 모든 인원 좌석 선택 완료
+            print(f"{', '.join(chosen_seats)} 자리 예매가 와료되었습니다. 주. 프롬프트로 돌아갑니다.")
+            print("예매 데이터 파일 변경 예정.")
+            break
 
 def menu1():
-    print("menu1")
-    """
-    6.4 영화 예매 기능 전체 흐름 제어 함수
-    날짜 선택(6.4.1) → 영화 선택(6.4.2) → 인원 수 입력(6.4.3) 순으로 실행.
-    각 단계에서 '0' 입력 시 상위 단계로 복귀.
-    """
     if core.LOGGED_IN_SID is None:
         error("로그인 정보가 없습니다. 주 프롬프트로 돌아갑니다.")
         return
@@ -203,7 +309,7 @@ def menu1():
     # -------------------------------
     selected_date = select_date()
     if selected_date is None:
-        info(">> 주 프롬프트로 돌아갑니다.")
+        info("주 프롬프트로 돌아갑니다.")
         return
 
     # -------------------------------
@@ -223,10 +329,8 @@ def menu1():
         return menu1()
 
     # -------------------------------
-    # 6.4.4 좌석 입력 (다음 단계에서 구현 예정)
+    # 6.4.4 좌석 입력
     # -------------------------------
-    info(f">> {num_people}명 좌석 선택 단계로 이동합니다. (6.4.4 좌석 입력 예정)")
-    # TODO: implement input_seats(selected_movie, num_people)
-    pass
-    pass
+    input_seats(selected_movie, num_people)
+    return
 
