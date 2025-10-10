@@ -144,8 +144,49 @@ def select_movie(selected_date: str) -> dict | None:
             selected_movie = movies[num - 1]
             return selected_movie
 
+# ---------------------------------------------------------------
+# 6.4.3 인원 수 입력
+# ---------------------------------------------------------------
+def input_people(selected_movie: dict) -> int | None:
+    """
+    6.4.3 인원 수 입력
+    - 선택된 영화에 대해 인원 수(최대 4명)를 입력받음
+    - 정상 입력 시 인원 수(int) 반환
+    - '0' 입력 시 이전 단계(6.4.2 영화 선택)로 복귀 → None 반환
+    """
+    movie_date = selected_movie["date"]
+    movie_time = selected_movie["time"]
+    movie_title = selected_movie["title"]
+
+    # 화면 출력
+    print(f"{movie_date} {movie_time} | 〈{movie_title}〉를 선택하셨습니다. 인원 수를 입력해주세요 (최대 4명):")
+
+    # 입력 루프
+    while True:
+        s = input("인원 수 입력 (0~4): ").strip()
+
+        # --- 문법 형식 위배 ---
+        if not re.fullmatch(r"\d", s or ""):
+            print("올바르지 않은 입력입니다. 한 자리 숫자만 입력하세요.")
+            continue
+
+        n = int(s)
+
+        # --- 의미 규칙 위배 ---
+        if not (0 <= n <= 4):
+            print("범위 밖의 입력입니다. 다시 입력해주세요.")
+            continue
+
+        # --- 정상 입력 ---
+        if n == 0:
+            # 6.4.2로 복귀
+            return None
+        else:
+            # 6.4.4로 진행
+            return n
+
+
 def menu1():
     print("menu1")
     pass
-
 
