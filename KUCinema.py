@@ -22,6 +22,10 @@ KU 영화 예매 프로그램 — KUCinema.py
 Python 3.11 표준 라이브러리만 사용합니다.
 """
 
+"""
+    github 사용법은 노션에
+"""
+
 from __future__ import annotations
 
 import os
