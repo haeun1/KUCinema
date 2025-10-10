@@ -1,6 +1,6 @@
 import re
 import ast
-from KUCinema import MOVIE_FILE, info, error, home_path
+from KUCinema import MOVIE_FILE,BOOKING_FILE, info, error, home_path
 import core
 
 # ---------------------------------------------------------------
@@ -238,6 +238,55 @@ def print_seat_board(seat_buffer: dict[str, int]) -> None:
             elif val == 2:
                 line.append("★")  # 현재 예매 중
         print(" ", " ".join(line))
+
+# ---------------------------------------------------------------
+# 파일 반영
+# ---------------------------------------------------------------
+def finalize_booking(selected_movie: dict, chosen_seats: list[str], student_id: str,
+                     movie_path, booking_path) -> None:
+    movie_id = selected_movie["id"]
+    date = selected_movie["date"]
+    time = selected_movie["time"]
+
+    # 이번 예매의 좌석 벡터 만들기 (내가 선택한 좌석만 1)
+    new_booking_vector = [0] * 25
+    for seat in chosen_seats:
+        row_idx = ROWS.index(seat[0])
+        col_idx = int(seat[1]) - 1
+        new_booking_vector[row_idx * 5 + col_idx] = 1
+
+    # movie-schedule.txt 업데이트 (기존 1 유지 + 새 1 추가)
+    lines = movie_path.read_text(encoding="utf-8").splitlines()
+    updated_lines = []
+
+    for line in lines:
+        parts = line.strip().split("/")
+        if len(parts) < 5:
+            updated_lines.append(line)
+            continue
+
+        movie_id_in_file = parts[0].strip()
+        if movie_id_in_file == movie_id:
+            seats = ast.literal_eval(parts[-1])
+            for i in range(25):
+                # 기존이 1이면 그대로, 새로 선택된 좌석이면 1로 바꿈
+                seats[i] = 1 if (seats[i] == 1 or new_booking_vector[i] == 1) else 0
+            parts[-1] = "[" + ",".join(map(str, seats)) + "]"
+            updated_line = "/".join(parts)
+            updated_lines.append(updated_line)
+        else:
+            updated_lines.append(line)
+
+    # 파일 덮어쓰기
+    movie_path.write_text("\n".join(updated_lines), encoding="utf-8")
+
+    # booking-info.txt에 새로운 예매 레코드 추가
+    with open(booking_path, "a", encoding="utf-8") as f:
+        booking_vec_str = ",".join(map(str, new_booking_vector))
+        f.write(f"{student_id}/{movie_id}/{date}/{time}/[{booking_vec_str}]\n")
+
+    print("예매 내역이 movie-schedule.txt 및 booking-info.txt에 성공적으로 반영되었습니다.")
+
 def input_seats(selected_movie: dict, n: int) -> None:
     """
     6.4.4 좌석 입력
@@ -246,7 +295,6 @@ def input_seats(selected_movie: dict, n: int) -> None:
     - 올바른 좌석 입력 시 버퍼에 반영하고 즉시 현황 재출력
     - 모든 인원 좌석 선택 완료 시 예매 데이터 파일 기록 후 주 프롬프트로 복귀 (기록 아직)
     """
-    #print(f"\n〈{selected_movie['title']}〉의 좌석을 선택해주세요.")
 
     # 1️. 좌석 벡터 불러오기
     seat_vector = selected_movie["seats"]
@@ -295,8 +343,17 @@ def input_seats(selected_movie: dict, n: int) -> None:
             continue
         else:
             # 모든 인원 좌석 선택 완료
+            movie_path = home_path() / MOVIE_FILE
+            booking_path = home_path() / BOOKING_FILE
+            finalize_booking(
+                selected_movie=selected_movie,
+                chosen_seats=chosen_seats,
+                student_id=core.LOGGED_IN_SID,
+                movie_path=movie_path,
+                booking_path=booking_path,
+            )
+
             print(f"{', '.join(chosen_seats)} 자리 예매가 와료되었습니다. 주. 프롬프트로 돌아갑니다.")
-            print("예매 데이터 파일 변경 예정.")
             break
 
 def menu1():
@@ -318,7 +375,7 @@ def menu1():
     selected_movie = select_movie(selected_date)
     if selected_movie is None:
         # 날짜 선택으로 복귀
-        return menu1()  # 사용자가 뒤로 가기를 선택했을 때
+        return menu1()  
 
     # -------------------------------
     # 6.4.3 인원 수 입력
