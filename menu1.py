@@ -1,6 +1,6 @@
 import re
 import ast
-from KUCinema import MOVIE_FILE,BOOKING_FILE, info, error, home_path
+from KUCinema import MOVIE_FILE,BOOKING_FILE,STUDENT_FILE, info, error, home_path
 import core
 from collections import defaultdict
 
@@ -8,6 +8,9 @@ import sys
 import ast
 from collections import defaultdict
 
+# ---------------------------------------------------------------
+# 좌석 일관성 규칙
+# ---------------------------------------------------------------
 def validate_booking_vectors():
     # 1. 경로 설정
     movie_path = home_path() / MOVIE_FILE
@@ -53,6 +56,86 @@ def validate_booking_vectors():
         print("영화 데이터 파일과 예매 데이터 파일 사이의 불일치가 발생했습니다.")
         print("프로그램을 종료합니다.")
         sys.exit(1)
+
+# ---------------------------------------------------------------
+# 영화 고유번호 참조 규칙
+# ---------------------------------------------------------------
+def check_invalid_movie_id():
+    movie_path = home_path() / MOVIE_FILE
+    booking_path = home_path() / BOOKING_FILE
+
+    # 1. 영화 데이터에 존재하는 movie_id 수집
+    valid_movie_ids = set()
+    with movie_path.open(encoding="utf-8") as f:
+        for line in f:
+            parts = line.strip().split("/")
+            if len(parts) >= 1:
+                valid_movie_ids.add(parts[0])
+
+    # 2. 예매 데이터에서 movie_id 검증
+    invalid_lines = []
+    with booking_path.open(encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            parts = line.split("/")
+            if len(parts) != 3:
+                continue
+            movie_id = parts[1]
+            if movie_id not in valid_movie_ids:
+                invalid_lines.append(line)
+
+    # 3. 출력 및 종료
+    if invalid_lines:
+        print("!!! 오류: 존재하지 않는 영화 고유번호를 참조하는 예매 레코드가 있습니다:")
+        for line in invalid_lines:
+            print(line)
+        print("프로그램을 종료합니다.")
+        sys.exit(1)
+ 
+# ---------------------------------------------------------------
+# 학생 학번 참조 규칙
+# ---------------------------------------------------------------
+def check_invalid_student_id():
+    student_path = home_path() / STUDENT_FILE
+    booking_path = home_path() / BOOKING_FILE
+
+    # 1. 유효한 학번 수집
+    valid_student_ids = set()
+    with student_path.open(encoding="utf-8") as f:
+        for line in f:
+            parts = line.strip().split("/")
+            if parts:
+                valid_student_ids.add(parts[0])
+
+    # 2. 예매 데이터에서 학번 검증
+    invalid_lines = []
+    with booking_path.open(encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            parts = line.split("/")
+            if len(parts) != 3:
+                continue
+            student_id = parts[0]
+            if student_id not in valid_student_ids:
+                invalid_lines.append(line)
+
+    # 3. 결과 처리
+    if invalid_lines:
+        print("!!! 오류: 존재하지 않는 학번을 참조하는 예매 레코드가 있습니다:")
+        for line in invalid_lines:
+            print(line)
+        print("프로그램을 종료합니다.")
+        sys.exit(1)
+
+
+# ---------------------------------------------------------------
+# 6.4.(5) 무결성 검사 - 전체 모두 실행하는 함수
+# ---------------------------------------------------------------
+def validate_all_booking_rules():
+
+    check_invalid_student_id()
+    check_invalid_movie_id()
+    validate_booking_vectors()
 
 # ---------------------------------------------------------------
 # 6.4.1 날짜 선택
@@ -450,6 +533,6 @@ def menu1():
     # -------------------------------
     # (예매 후) 무결성 검사
     # -------------------------------
-    validate_booking_vectors() # 예매하고 무결성 검사
+    validate_all_booking_rules() # 예매하고 무결성 검사
     return
 
