@@ -2,6 +2,57 @@ import re
 import ast
 from KUCinema import MOVIE_FILE,BOOKING_FILE, info, error, home_path
 import core
+from collections import defaultdict
+
+import sys
+import ast
+from collections import defaultdict
+
+def validate_booking_vectors():
+    # 1. 경로 설정
+    movie_path = home_path() / MOVIE_FILE
+    booking_path = home_path() / BOOKING_FILE
+
+    # 2. movie-schedule 파일 → 좌석 유무 벡터 읽기
+    movie_vectors = {}
+    with movie_path.open(encoding="utf-8") as f:
+        for line in f:
+            parts = line.strip().split("/")
+            movie_id = parts[0]
+            seat_vector = ast.literal_eval(parts[-1])
+            movie_vectors[movie_id] = seat_vector
+
+    # 3. booking-info 파일 → 좌석 예약 벡터 누적
+    booking_sum_vectors = defaultdict(lambda: [0] * 25)
+    with booking_path.open(encoding="utf-8") as f:
+        for line in f:
+            parts = line.strip().split("/")
+            movie_id = parts[1]
+            booking_vector = ast.literal_eval(parts[-1])
+            for i in range(25):
+                booking_sum_vectors[movie_id][i] += booking_vector[i]
+
+    # 4. 검증
+    all_passed = True
+    for movie_id, summed_vector in booking_sum_vectors.items():
+        if movie_id not in movie_vectors:
+            print(f"movie-schedule에 존재하지 않는 movie_id: {movie_id}")
+            all_passed = False
+            continue
+
+        if summed_vector != movie_vectors[movie_id]:
+            print(f"불일치: movie_id {movie_id}")
+            print(f"  예약 벡터 합: {summed_vector}")
+            print(f"  movie-schedule 벡터: {movie_vectors[movie_id]}")
+            all_passed = False
+
+    # 5. 결과 처리
+    if all_passed:
+        return
+    else:
+        print("영화 데이터 파일과 예매 데이터 파일 사이의 불일치가 발생했습니다.")
+        print("프로그램을 종료합니다.")
+        sys.exit(1)
 
 # ---------------------------------------------------------------
 # 6.4.1 날짜 선택
@@ -281,9 +332,15 @@ def finalize_booking(selected_movie: dict, chosen_seats: list[str], student_id: 
     movie_path.write_text("\n".join(updated_lines), encoding="utf-8")
 
     # booking-info.txt에 새로운 예매 레코드 추가
-    with open(booking_path, "a", encoding="utf-8") as f:
+    with open(booking_path, "a+", encoding="utf-8") as f:
+        f.seek(0)
+        is_empty = (f.read().strip() == "")
         booking_vec_str = ",".join(map(str, new_booking_vector))
-        f.write(f"{student_id}/{movie_id}/{date}/{time}/[{booking_vec_str}]\n")
+
+        if is_empty:
+            f.write(f"{student_id}/{movie_id}/[{booking_vec_str}]")
+        else:
+            f.write(f"\n{student_id}/{movie_id}/[{booking_vec_str}]")
 
     print("예매 내역이 movie-schedule.txt 및 booking-info.txt에 성공적으로 반영되었습니다.")
 
@@ -389,5 +446,10 @@ def menu1():
     # 6.4.4 좌석 입력
     # -------------------------------
     input_seats(selected_movie, num_people)
+
+    # -------------------------------
+    # (예매 후) 무결성 검사
+    # -------------------------------
+    validate_booking_vectors() # 예매하고 무결성 검사
     return
 
