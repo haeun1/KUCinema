@@ -1,9 +1,12 @@
 import os
 import re
 import ast
+import sys
 from datetime import datetime
 from KUCinema import MOVIE_FILE,BOOKING_FILE, info, error, home_path
+from menu1 import validate_booking_vectors
 import core
+from collections import defaultdict
 
 #HOME = os.path.expanduser("~")
 #BOOKING_FILE = os.path.join(HOME, "booking-info.txt")
@@ -187,7 +190,8 @@ def confirm_cancelation(selected_booking: dict) -> None:
             if uid == selected_booking['movie_id']:
                 current_seats = ast.literal_eval(seats.strip())
                 restored_seats = [max(0, cs - ss) for cs, ss in zip(current_seats, selected_booking['seats'])]
-                new_line = f"{uid} / {title} / {date} / {time} / {restored_seats}"
+                seat_str = "[" + ",".join(map(str, restored_seats)) + "]"
+                new_line = f"{uid}/{title}/{date}/{time}/{seat_str}"
                 new_movie_lines.append(new_line)
             else:
                 new_movie_lines.append(line)
@@ -197,11 +201,11 @@ def confirm_cancelation(selected_booking: dict) -> None:
         save_records(movie_path, new_movie_lines)
 
         info("예매가 취소되었습니다.")
-        # 6.6.1 재실행
-        menu3()
-    else:
-        # 6.6.1 재실행
-        menu3()
+        
+    # 예매 데이터 무결성 검사
+    validate_booking_vectors()
+    # 6.6.1 재실행
+    menu3()
 
 
 def menu3():
@@ -220,3 +224,8 @@ def menu3():
     # 6.6.2 취소 최종 확인
     # -------------------------------
     confirm_cancelation(selected_cancelation)
+
+    # -------------------------------
+    # 예매 데이터 무결성 검사
+    # -------------------------------
+    validate_booking_vectors()
