@@ -506,7 +506,7 @@ def menu1():
     # -------------------------------
     selected_date = select_date()
     if selected_date is None:
-        info("주 프롬프트로 돌아갑니다.")
+        # 주 프롬프트로 복귀
         return
 
     # -------------------------------
@@ -528,7 +528,10 @@ def menu1():
     # -------------------------------
     # 6.4.4 좌석 입력
     # -------------------------------
-    input_seats(selected_movie, num_people)
+    seat_input_success = input_seats(selected_movie, num_people)
+    if not seat_input_success:
+        # 예매 과정을 처음부터 시작
+        return menu1()
 
     # -------------------------------
     # (예매 후) 무결성 검사
