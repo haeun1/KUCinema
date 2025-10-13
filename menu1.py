@@ -48,7 +48,7 @@ def select_date() -> str | None:
     # 4️. 출력 화면 구성
     print("영화예매를 선택하셨습니다. 아래는 예매 가능한 날짜 리스트입니다.")
     if n == 0:
-        info("현재 날짜 이후 상영 예정 영화가 없습니다.")
+        info("상영이 예정된 영화가 없습니다.")
         return None
 
     for i, d in enumerate(dates, start=1):
