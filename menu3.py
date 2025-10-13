@@ -3,8 +3,7 @@ import re
 import ast
 import sys
 from datetime import datetime
-from KUCinema import MOVIE_FILE,BOOKING_FILE, info, error, home_path
-from menu1 import validate_booking_vectors
+from KUCinema import MOVIE_FILE,BOOKING_FILE,STUDENT_FILE, info, error, home_path, validate_all_booking_rules,load_and_validate_students,validate_movie_file,validate_booking_syntax
 import core
 from collections import defaultdict
 
@@ -144,6 +143,11 @@ def confirm_cancelation(selected_booking: dict) -> None:
     - Y 입력 시 예매 데이터 파일, 영화 데이터 파일 수정, 6.6.1 재실행
     - N 입력 시 6.6.1 재실행
     """
+
+    movie_path = home_path() / MOVIE_FILE
+    student_path = home_path() / STUDENT_FILE
+    booking_path = home_path() / BOOKING_FILE
+
     seat_names = [f"{row}{col}" for row in "ABCDE" for col in range(1, 6)]
     seat_str = ""
     seats = selected_booking.get('seats', [])
@@ -202,13 +206,28 @@ def confirm_cancelation(selected_booking: dict) -> None:
 
         info("예매가 취소되었습니다.")
         
-    # 예매 데이터 무결성 검사
-    validate_booking_vectors()
+    # 0-1) 학생 파일 최소 무결성 검사
+    students = load_and_validate_students(student_path)
+    
+    # 0-2) 영화 데이터 파일 무결성(문법+의미) 검사 — 위배 발견 즉시 종료
+    validate_movie_file(movie_path)
+
+    # 0-3) 예매 데이터 파일 문법 검사 — 위배 행 전부 출력 후 종료
+    validate_booking_syntax(booking_path)
+
+    # 예매 데이터 파일 무결성 검사(의미 규칙)
+    validate_all_booking_rules()
+
     # 6.6.1 재실행
     menu3()
 
 
 def menu3():
+
+    movie_path = home_path() / MOVIE_FILE
+    student_path = home_path() / STUDENT_FILE
+    booking_path = home_path() / BOOKING_FILE
+
     if core.LOGGED_IN_SID is None:
         error("로그인 정보가 없습니다. 주 프롬프트로 돌아갑니다.")
         return
@@ -225,7 +244,14 @@ def menu3():
     # -------------------------------
     confirm_cancelation(selected_cancelation)
 
-    # -------------------------------
-    # 예매 데이터 무결성 검사
-    # -------------------------------
-    validate_booking_vectors()
+    # 0-1) 학생 파일 최소 무결성 검사
+    students = load_and_validate_students(student_path)
+    
+    # 0-2) 영화 데이터 파일 무결성(문법+의미) 검사 — 위배 발견 즉시 종료
+    validate_movie_file(movie_path)
+
+    # 0-3) 예매 데이터 파일 문법 검사 — 위배 행 전부 출력 후 종료
+    validate_booking_syntax(booking_path)
+
+    # 예매 데이터 파일 무결성 검사(의미 규칙)
+    validate_all_booking_rules()
