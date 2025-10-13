@@ -4,7 +4,7 @@ import ast
 import sys
 from datetime import datetime
 from KUCinema import MOVIE_FILE,BOOKING_FILE, info, error, home_path
-from menu1 import validate_booking_vectors
+from KUCinema import validate_all_booking_rules
 import core
 from collections import defaultdict
 
@@ -203,7 +203,7 @@ def confirm_cancelation(selected_booking: dict) -> None:
         info("예매가 취소되었습니다.")
         
     # 예매 데이터 무결성 검사
-    validate_booking_vectors()
+    validate_all_booking_rules()
     # 6.6.1 재실행
     menu3()
 
