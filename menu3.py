@@ -39,9 +39,12 @@ def parse_booking_record(line) -> None:
 
 def save_records(path, records) -> None:
     with open(path, "w", encoding="utf-8") as f:
-        for line in records:
-            f.write(line.strip() + "\n")
-
+        for i, line in enumerate(records):
+            line = line.strip()
+            if i < len(records) - 1:
+                f.write(line + "\n")
+            else:
+                f.write(line)
 # ---------------------------------------------------------------
 # 6.6.1 취소 대상 선택
 # ---------------------------------------------------------------
