@@ -184,6 +184,7 @@ def load_and_validate_students(student_path: Path) -> Dict[str, str]:
             print(f"  - {li}행: {content!r}")
         sys.exit(1)
 
+
     return students
 
 # ---------------------------------------------------------------
@@ -308,6 +309,7 @@ def validate_movie_file(movie_path: Path) -> None:
         if daily_counts[dstr] >= 10:
             error(f"{MOVIE_FILE}:{i}행 — 같은 날짜({dstr}) 상영 10개 이상 규칙 위배.")
             sys.exit(1)
+        
 
 
 # ---------------------------------------------------------------
@@ -347,6 +349,7 @@ def validate_booking_syntax(booking_path: Path) -> None:
         for li, content, reason in bads:
             print(f"  - {li}행: {content!r}  ← {reason}")
         sys.exit(1)
+    
 
 # ---------------------------------------------------------------
 # 좌석 일관성 규칙

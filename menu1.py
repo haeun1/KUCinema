@@ -1,9 +1,9 @@
 import re
 import ast
-from KUCinema import MOVIE_FILE,BOOKING_FILE,STUDENT_FILE, info, error, home_path
+from KUCinema import MOVIE_FILE,BOOKING_FILE,STUDENT_FILE, info, error, home_path,validate_all_booking_rules,load_and_validate_students,validate_movie_file,validate_booking_syntax
 import core
 from collections import defaultdict
-from KUCinema import validate_all_booking_rules
+
 
 import sys
 import ast
@@ -369,6 +369,11 @@ def input_seats(selected_movie: dict, n: int) -> bool:
             return True
 
 def menu1():
+
+    movie_path = home_path() / MOVIE_FILE
+    student_path = home_path() / STUDENT_FILE
+    booking_path = home_path() / BOOKING_FILE
+
     if core.LOGGED_IN_SID is None:
         error("로그인 정보가 없습니다. 주 프롬프트로 돌아갑니다.")
         return
@@ -405,8 +410,15 @@ def menu1():
         # 예매 과정을 처음부터 시작
         return menu1()
 
-    # -------------------------------
-    # (예매 후) 무결성 검사
-    # -------------------------------
-    validate_all_booking_rules() # 예매하고 무결성 검사
+    # 0-1) 학생 파일 최소 무결성 검사
+    students = load_and_validate_students(student_path)
+    
+    # 0-2) 영화 데이터 파일 무결성(문법+의미) 검사 — 위배 발견 즉시 종료
+    validate_movie_file(movie_path)
+
+    # 0-3) 예매 데이터 파일 문법 검사 — 위배 행 전부 출력 후 종료
+    validate_booking_syntax(booking_path)
+
+    # 예매 데이터 파일 무결성 검사(의미 규칙)
+    validate_all_booking_rules()
 
