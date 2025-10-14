@@ -613,7 +613,7 @@ def prompt_password_new(student_path: Path, sid: str, students: Dict[str, str]) 
             continue
         # 파일에 추가
         with student_path.open("a", encoding="utf-8", newline="\n") as f:
-            f.write(f"{sid}/{pw}\n")
+            f.write(f"\n{sid}/{pw}")
         students[sid] = pw
         #info("신규 회원 가입이 완료되었습니다.")
         break
