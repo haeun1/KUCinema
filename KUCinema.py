@@ -451,7 +451,7 @@ def validate_booking_vectors():
     else:
         #print("영화 데이터 파일과 예매 데이터 파일 사이의 불일치가 발생했습니다.")
         #print("프로그램을 종료합니다.")
-        error(f" 데이터 파일\n{booking_path}가 올바르지 않습니다!\n좌석 일관성 규칙이 위반되었습니다. 프로그램을 종료합니다.")
+        error(f" 데이터 파일\n{booking_path}가 올바르지 않습니다!\n의미 규칙이 위반되었습니다. 프로그램을 종료합니다.")
         sys.exit(1)
 
 # ---------------------------------------------------------------
@@ -484,7 +484,7 @@ def check_invalid_movie_id():
     # 3. 출력 및 종료
     if invalid_lines:
         #print("!!! 오류: 존재하지 않는 영화 고유번호를 참조하는 예매 레코드가 있습니다:")
-        error(f"데이터 파일\n{booking_path}가 올바르지 않습니다!\n영화 고유번호 참조 규칙이 위반되었습니다. 프로그램을 종료합니다.")
+        error(f"데이터 파일\n{booking_path}가 올바르지 않습니다!\n의미 규칙이 위반되었습니다. 프로그램을 종료합니다.")
         for line in invalid_lines:
             print(line)
         #print("프로그램을 종료합니다.")
@@ -520,7 +520,7 @@ def check_invalid_student_id():
     # 3. 결과 처리
     if invalid_lines:
         #print("!!! 오류: 존재하지 않는 학번을 참조하는 예매 레코드가 있습니다:")
-        error(f"데이터 파일\n{booking_path}가 올바르지 않습니다!\n학생 학번 참조 규칙이 위반되었습니다. 프로그램을 종료합니다.")
+        error(f"데이터 파일\n{booking_path}가 올바르지 않습니다!\n의미 규칙이 위반되었습니다. 프로그램을 종료합니다.")
         for line in invalid_lines:
             print(line)
         #print("프로그램을 종료합니다.")
@@ -703,12 +703,13 @@ def main() -> None:
     # 0-3) 예매 데이터 파일 문법 검사 — 위배 행 전부 출력 후 종료
     validate_booking_syntax(booking_path)
 
-    # 0-4) 좌석 예약 벡터가 모두 0인 예매 레코드 제거(경고 후 삭제)
+    # 0-4) 예매 데이터 파일 무결성 검사(의미 규칙)
+    validate_all_booking_rules()
+    
+    # 0-5) 좌석 예약 벡터가 모두 0인 예매 레코드 제거(경고 후 삭제)
     prune_zero_seat_bookings(booking_path)
 
-    # 예매 데이터 파일 무결성 검사(의미 규칙)
-    validate_all_booking_rules()
-
+    
 
     # 1) 6.1 — 날짜 입력
     CURRENT_DATE_STR = prompt_input_date()  # 내부 현재 날짜 확정
