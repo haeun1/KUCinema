@@ -71,10 +71,10 @@ def info(msg: str) -> None:
     print(msg)
 
 def warn(msg: str) -> None:
-    print(f"[경고] {msg}")
+    print(f"..! 경고: {msg}")
 
 def error(msg: str) -> None:
-    print(f"[오류] {msg}")
+    print(f"!!! 오류: {msg}")
 
 
 # ---------------------------------------------------------------
@@ -85,7 +85,7 @@ def home_path() -> Path:
     # try:
     #     hp = Path(os.path.expanduser("~")).resolve()  # 홈 경로 반환
     # except Exception as e:
-    #     error(f"홈 경로를 파악할 수 없습니다: {e}")
+    #     error(f"홈 경로를 파악할 수 없습니다! 프로그램을 종료합니다. {e}")
     #     sys.exit(1)
     # 배포하기 전은 현재 경로인 KUCinema.py 파일의 경로를 반환
     hp = Path(os.getcwd())
@@ -105,44 +105,44 @@ def ensure_environment() -> Tuple[Path, Path, Path]:
 
     # 1) 영화 데이터 파일: 존재 + 읽기 권한 필수
     if not movie_path.exists():
-        error(f"홈 경로에 '{MOVIE_FILE}' 파일이 없습니다. 프로그램을 종료합니다.")
+        error(f"영화 데이터 파일 \n홈 경로에 영화 데이터 파일({MOVIE_FILE})이 존재하지 않습니다. 프로그램을 종료합니다.")
         sys.exit(1)
     try:
         _ = movie_path.read_text(encoding="utf-8")
     except Exception as e:
-        error(f"'{MOVIE_FILE}' 파일을 읽을 수 없습니다: {e}")
+        error(f"{movie_path}'에 대한 읽기 권한이 없습니다! 프로그램을 종료합니다. {e}")
         sys.exit(1)
 
     # 2) 학생 데이터 파일: 없으면 빈 파일 생성, 있으면 읽기/쓰기 가능 확인
     if not student_path.exists():
-        warn(f"'{STUDENT_FILE}' 파일이 없어 빈 파일을 생성합니다.")
+        warn(f"홈 경로 {hp}에 학생 데이터 파일이 없습니다.")
         try:
             student_path.write_text("", encoding="utf-8", newline="\n")
-            info(f"'{STUDENT_FILE}' 파일 생성 완료.")
+            info(f"... 홈 경로에 빈 학생 데이터 파일을 새로 생성했습니다: \n{student_path}")
         except Exception as e:
-            error(f"'{STUDENT_FILE}' 파일 생성 실패: {e}")
+            error(f"홈 경로에 학생 데이터 파일을 생성하지 못했습니다! 프로그램을 종료합니다.")
             sys.exit(1)
     else:
         try:
             _ = student_path.read_text(encoding="utf-8")
         except Exception as e:
-            error(f"'{STUDENT_FILE}' 파일을 읽을 수 없습니다: {e}")
+            error(f"데이터 파일\n{student_path}에 대한 입출력 권한이 없습니다! 프로그램을 종료합니다.")
             sys.exit(1)
 
     # 3) 예매 데이터 파일: 없으면 빈 파일 생성 (6.1~6.3에서는 직접 사용하지 않지만 미리 준비)
     if not booking_path.exists():
-        warn(f"'{BOOKING_FILE}' 파일이 없어 빈 파일을 생성합니다.")
+        warn(f"홈 경로 {hp}에 예매 데이터 파일이 없습니다.")
         try:
             booking_path.write_text("", encoding="utf-8", newline="\n")
-            info(f"'{BOOKING_FILE}' 파일 생성 완료.")
+            info(f"... 홈 경로에 빈 예매 데이터 파일을 새로 생성했습니다:\n{booking_path}")
         except Exception as e:
-            error(f"'{BOOKING_FILE}' 파일 생성 실패: {e}")
+            error(f"홈 경로에 예메 데이터파일을 생성하지 못했습니다! 프로그램을 종료합니다.")
             sys.exit(1)
     else:
         try:
             _ = booking_path.read_text(encoding="utf-8")
         except Exception as e:
-            error(f"'{BOOKING_FILE}' 파일을 읽을 수 없습니다: {e}")
+            error(f"데이터 파일\n{booking_path}\n에 대한 입출력 권한이 없습니다! 프로그램을 종료합니다.")
             sys.exit(1)
 
     return movie_path, student_path, booking_path
@@ -179,9 +179,10 @@ def load_and_validate_students(student_path: Path) -> Dict[str, str]:
         students[sid] = pw
 
     if bad_lines:
-        error("학생 데이터 파일 형식 오류 또는 중복 학번이 있습니다. 다음 행을 확인하세요:")
+        error("데이터 파일\n{student_path}가 올바르지 않습니다! 프로그램을 종료합니다.")
         for li, content in bad_lines:
-            print(f"  - {li}행: {content!r}")
+            #print(f"  - {li}행: {content!r}")
+            print(f"{content}")
         sys.exit(1)
 
 
@@ -245,7 +246,8 @@ def validate_movie_file(movie_path: Path) -> None:
     """
     lines = movie_path.read_text(encoding="utf-8").splitlines()
     if not lines:
-        error("영화 데이터 파일이 비어 있습니다(최소 1개 레코드 필요).")
+        #error("영화 데이터 파일이 비어 있습니다(최소 1개 레코드 필요).")
+        error(f"영화 데이터 파일\n데이터 파일에 규칙에 위배되는 행이 존재합니다. 프로그램을 종료합니다.")
         sys.exit(1)
 
     prev_id_num: int | None = None
@@ -254,60 +256,72 @@ def validate_movie_file(movie_path: Path) -> None:
 
     for i, line in enumerate(lines, start=1):
         if line != line.strip():
-            error(f"{MOVIE_FILE}:{i}행 — 레코드 앞/뒤 공백 금지 규칙 위배.")
+            #error(f"{MOVIE_FILE}:{i}행 — 레코드 앞/뒤 공백 금지 규칙 위배.")
+            error(f"영화 데이터 파일\n데이터 파일에 규칙에 위배되는 행이 존재합니다. 프로그램을 종료합니다.")
             sys.exit(1)
 
         parts = line.split("/")
         if len(parts) != 5:
-            error(f"{MOVIE_FILE}:{i}행 — 필드 개수 오류(5개 아님).")
+            #error(f"{MOVIE_FILE}:{i}행 — 필드 개수 오류(5개 아님).")
+            error(f"영화 데이터 파일\n데이터 파일에 규칙에 위배되는 행이 존재합니다. 프로그램을 종료합니다.")
             sys.exit(1)
 
         mid, title, dstr, tstr, vec = parts
 
         if not _valid_movie_id(mid):
-            error(f"{MOVIE_FILE}:{i}행 — 영화 상영표 고유번호 형식/의미 오류.")
+            #error(f"{MOVIE_FILE}:{i}행 — 영화 상영표 고유번호 형식/의미 오류.")
+            error(f"영화 데이터 파일\n데이터 파일에 규칙에 위배되는 행이 존재합니다. 프로그램을 종료합니다.")
             sys.exit(1)
 
         if not _valid_title(title):
-            error(f"{MOVIE_FILE}:{i}행 — 영화 제목 형식 오류(특수문자/앞뒤공백 금지).")
+            #error(f"{MOVIE_FILE}:{i}행 — 영화 제목 형식 오류(특수문자/앞뒤공백 금지).")
+            error(f"영화 데이터 파일\n데이터 파일에 규칙에 위배되는 행이 존재합니다. 프로그램을 종료합니다.")
             sys.exit(1)
 
         if not RE_DATE.fullmatch(dstr):
-            error(f"{MOVIE_FILE}:{i}행 — 영화 날짜 문법 오류(YYYY-MM-DD).")
+            #error(f"{MOVIE_FILE}:{i}행 — 영화 날짜 문법 오류(YYYY-MM-DD).")
+            error(f"영화 데이터 파일\n데이터 파일에 규칙에 위배되는 행이 존재합니다. 프로그램을 종료합니다.")
             sys.exit(1)
         y, m, d = int(dstr[0:4]), int(dstr[5:7]), int(dstr[8:10])
         try:
             date(y, m, d)
         except ValueError:
-            error(f"{MOVIE_FILE}:{i}행 — 영화 날짜 의미 오류(존재하지 않는 날짜).")
+            #error(f"{MOVIE_FILE}:{i}행 — 영화 날짜 의미 오류(존재하지 않는 날짜).")
+            error(f"영화 데이터 파일\n데이터 파일에 규칙에 위배되는 행이 존재합니다. 프로그램을 종료합니다.")
             sys.exit(1)
 
         if int(mid[0:4]) != y:
-            error(f"{MOVIE_FILE}:{i}행 — 고유번호 연도와 영화 날짜 연도 불일치.")
+            #error(f"{MOVIE_FILE}:{i}행 — 고유번호 연도와 영화 날짜 연도 불일치.")
+            error(f"영화 데이터 파일\n데이터 파일에 규칙에 위배되는 행이 존재합니다. 프로그램을 종료합니다.")
             sys.exit(1)
 
         if not _valid_movie_time(tstr):
-            error(f"{MOVIE_FILE}:{i}행 — 영화 시간 형식/의미 오류(HH:MM-HH:MM).")
+            #error(f"{MOVIE_FILE}:{i}행 — 영화 시간 형식/의미 오류(HH:MM-HH:MM).")
+            error(f"영화 데이터 파일\n데이터 파일에 규칙에 위배되는 행이 존재합니다. 프로그램을 종료합니다.")
             sys.exit(1)
 
         if _parse_seat_vector(vec) is None:
-            error(f"{MOVIE_FILE}:{i}행 — 좌석 유무 벡터 형식 오류(길이 25의 0/1 배열).")
+            #error(f"{MOVIE_FILE}:{i}행 — 좌석 유무 벡터 형식 오류(길이 25의 0/1 배열).")
+            error(f"영화 데이터 파일\n데이터 파일에 규칙에 위배되는 행이 존재합니다. 프로그램을 종료합니다.")
             sys.exit(1)
 
         id_num = int(mid)
         if prev_id_num is not None and id_num <= prev_id_num:
-            error(f"{MOVIE_FILE}:{i}행 — 고유번호 오름차순 위배(이전={prev_id_num}, 현재={id_num}).")
+            #error(f"{MOVIE_FILE}:{i}행 — 고유번호 오름차순 위배(이전={prev_id_num}, 현재={id_num}).")
+            error(f"영화 데이터 파일\n데이터 파일에 규칙에 위배되는 행이 존재합니다. 프로그램을 종료합니다.")
             sys.exit(1)
         prev_id_num = id_num
 
         if mid in seen_ids:
-            error(f"{MOVIE_FILE}:{i}행 — 고유번호 중복 발생({mid}).")
+            #error(f"{MOVIE_FILE}:{i}행 — 고유번호 중복 발생({mid}).")
+            error(f"영화 데이터 파일\n데이터 파일에 규칙에 위배되는 행이 존재합니다. 프로그램을 종료합니다.")
             sys.exit(1)
         seen_ids.add(mid)
 
         daily_counts[dstr] += 1
         if daily_counts[dstr] >= 10:
-            error(f"{MOVIE_FILE}:{i}행 — 같은 날짜({dstr}) 상영 10개 이상 규칙 위배.")
+            #error(f"{MOVIE_FILE}:{i}행 — 같은 날짜({dstr}) 상영 10개 이상 규칙 위배.")
+            error(f"영화 데이터 파일\n데이터 파일에 규칙에 위배되는 행이 존재합니다. 프로그램을 종료합니다.")
             sys.exit(1)
         
 
@@ -345,10 +359,49 @@ def validate_booking_syntax(booking_path: Path) -> None:
             bads.append((i, line, "좌석 예약 벡터 형식 오류(길이 25의 0/1 배열)"))
 
     if bads:
-        error("예매 데이터 파일에서 문법 규칙 위배 행이 발견되었습니다. 아래 행들을 확인하세요:")
+        error(f"데이터 파일\n{booking_path}가 올바르지 않습니다! 프로그램을 종료합니다.")
         for li, content, reason in bads:
-            print(f"  - {li}행: {content!r}  ← {reason}")
+            #print(f"  - {li}행: {content!r}  ← {reason}")
+            print(f"{content}")
         sys.exit(1)
+    
+    
+
+    
+def prune_zero_seat_bookings(booking_path: Path) -> None:
+    """
+    좌석 예약 벡터가 모두 0인 예매 레코드를 경고 표시 후 파일에서 삭제.
+    (5.3.3 부가 확인 항목)
+    """
+    lines = booking_path.read_text(encoding="utf-8").splitlines()
+    kept: list[str] = []
+    removed = 0
+
+    for line in lines:
+        line_stripped = line.strip()
+        if line_stripped == "":
+            # 빈 행은 validate_booking_syntax에서 이미 걸러짐. 안전 차원에서 보존하지 않음.
+            continue
+        m = RE_BOOKING_RECORD.match(line_stripped)
+        if not m:
+            # 문법 검증 이후 단계이므로 일반적으로 도달하지 않음. 안전하게 유지.
+            kept.append(line_stripped)
+            continue
+        vec_str = m.group("vec")
+        vec = _parse_seat_vector(vec_str)
+        if vec is None:
+            # 문법 검증 이후 단계이므로 일반적으로 도달하지 않음. 안전하게 유지.
+            kept.append(line_stripped)
+            continue
+        if all(v == 0 for v in vec):
+            #warn(f"좌석 예약 벡터가 모두 0인 예매 레코드를 삭제합니다: {line_stripped}")
+            removed += 1
+            continue
+        kept.append(line_stripped)
+
+    if removed > 0:
+        warn(f"예매 데이터 파일에 무의미한 예매 레코드가 존재합니다. 해당 예매 레코드를 삭제합니다.")
+        booking_path.write_text("\n".join(kept) + ("\n" if kept else ""), encoding="utf-8", newline="\n")
     
 
 # ---------------------------------------------------------------
@@ -382,22 +435,23 @@ def validate_booking_vectors():
     all_passed = True
     for movie_id, summed_vector in booking_sum_vectors.items():
         if movie_id not in movie_vectors:
-            print(f"movie-schedule에 존재하지 않는 movie_id: {movie_id}")
+            #print(f"movie-schedule에 존재하지 않는 movie_id: {movie_id}")
             all_passed = False
             continue
 
         if summed_vector != movie_vectors[movie_id]:
-            print(f"불일치: movie_id {movie_id}")
-            print(f"  예약 벡터 합: {summed_vector}")
-            print(f"  movie-schedule 벡터: {movie_vectors[movie_id]}")
+            #print(f"불일치: movie_id {movie_id}")
+            #print(f"  예약 벡터 합: {summed_vector}")
+            #print(f"  movie-schedule 벡터: {movie_vectors[movie_id]}")
             all_passed = False
 
     # 5. 결과 처리
     if all_passed:
         return
     else:
-        print("영화 데이터 파일과 예매 데이터 파일 사이의 불일치가 발생했습니다.")
-        print("프로그램을 종료합니다.")
+        #print("영화 데이터 파일과 예매 데이터 파일 사이의 불일치가 발생했습니다.")
+        #print("프로그램을 종료합니다.")
+        error(f" 데이터 파일\n{booking_path}가 올바르지 않습니다!\n좌석 일관성 규칙이 위반되었습니다. 프로그램을 종료합니다.")
         sys.exit(1)
 
 # ---------------------------------------------------------------
@@ -429,10 +483,11 @@ def check_invalid_movie_id():
 
     # 3. 출력 및 종료
     if invalid_lines:
-        print("!!! 오류: 존재하지 않는 영화 고유번호를 참조하는 예매 레코드가 있습니다:")
+        #print("!!! 오류: 존재하지 않는 영화 고유번호를 참조하는 예매 레코드가 있습니다:")
+        error(f"데이터 파일\n{booking_path}가 올바르지 않습니다!\n영화 고유번호 참조 규칙이 위반되었습니다. 프로그램을 종료합니다.")
         for line in invalid_lines:
             print(line)
-        print("프로그램을 종료합니다.")
+        #print("프로그램을 종료합니다.")
         sys.exit(1)
  
 # ---------------------------------------------------------------
@@ -464,10 +519,11 @@ def check_invalid_student_id():
 
     # 3. 결과 처리
     if invalid_lines:
-        print("!!! 오류: 존재하지 않는 학번을 참조하는 예매 레코드가 있습니다:")
+        #print("!!! 오류: 존재하지 않는 학번을 참조하는 예매 레코드가 있습니다:")
+        error(f"데이터 파일\n{booking_path}가 올바르지 않습니다!\n학생 학번 참조 규칙이 위반되었습니다. 프로그램을 종료합니다.")
         for line in invalid_lines:
             print(line)
-        print("프로그램을 종료합니다.")
+        #print("프로그램을 종료합니다.")
         sys.exit(1)
 
 
@@ -500,13 +556,13 @@ def is_valid_date_string(s: str) -> bool:
 def prompt_input_date() -> str:
     """6.1 날짜 입력 프롬프트"""
     while True:
-        s = input("현재 날짜를 설정하세요 (YYYY-MM-DD): ")
+        s = input("현재 날짜를 입력하세요 (YYYY-MM-DD) : ")
         # 문법/의미 체크
         if not RE_DATE.fullmatch(s):
-            error("입력 날짜의 문법 형식이 올바르지 않습니다. 예: 2025-10-03")
+            info("날짜 형식이 맞지 않습니다. 다시 입력해주세요")
             continue
         if not is_valid_date_string(s):
-            error("입력한 날짜가 실제 달력에 존재하지 않습니다. 다시 입력하세요.")
+            info("존재하지 않는 날짜입니다. 다시 입력해주세요.")
             continue
         return s
 
@@ -517,16 +573,16 @@ def prompt_input_date() -> str:
 def prompt_student_id() -> str:
     """6.2.1 학번 입력 — 문법 형식: 2자리 숫자, 공백 불가"""
     while True:
-        sid = input("학번(2자리 숫자): ")
+        sid = input("학번을 입력하세요 (2자리 숫자) : ")
         if not RE_STUDENT_ID.fullmatch(sid):
-            error("학번의 문법 형식이 올바르지 않습니다. 예: 00, 07, 42")
+            info("학번의 형식이 올바르지 않습니다. 다시 입력해주세요.")
             continue
         return sid
 
 
-def prompt_login_intent() -> bool:
+def prompt_login_intent(sid: str) -> bool:
     """6.2.2 로그인 의사 — 'Y'만 긍정, 나머지는 모두 부정"""
-    ans = input("해당 학번으로 로그인/가입을 진행할까요? (Y/N): ")
+    ans = input(f"{sid}님으로 로그인하시겠습니까? (Y/N) : ")
     return ans == "Y"
 
 
@@ -537,12 +593,12 @@ def prompt_password_existing(expected_pw: str) -> bool:
     - 정상: True 반환
     """
     while True:
-        pw = input("비밀번호(4자리 숫자): ")
+        pw = input("비밀번호를 입력하세요 (4자리 숫자) : ")
         if not RE_PASSWORD.fullmatch(pw):
-            error("비밀번호의 문법 형식이 올바르지 않습니다. 예: 0000, 0420, 1234")
+            info("비밀번호의 형식이 올바르지 않습니다. 다시 입력해주세요.")
             continue  # 6.2.3 재시작
         if pw != expected_pw:
-            error("비밀번호가 일치하지 않습니다. 처음(학번 입력)으로 돌아갑니다.")
+            info("비밀번호가 올바르지 않습니다.")
             return False  # 6.2.1로 복귀
         # 정상
         return True
@@ -551,15 +607,15 @@ def prompt_password_existing(expected_pw: str) -> bool:
 def prompt_password_new(student_path: Path, sid: str, students: Dict[str, str]) -> None:
     """6.2.4 신규 회원: 비밀번호 설정 후 파일에 <학번>/<비밀번호> 추가"""
     while True:
-        pw = input("새 비밀번호(4자리 숫자): ")
+        pw = input("신규 회원입니다. 비밀번호를 설정해주세요 (4자리 숫자) : ")
         if not RE_PASSWORD.fullmatch(pw):
-            error("비밀번호의 문법 형식이 올바르지 않습니다. 예: 0000, 0420, 1234")
+            info("비밀번호의 형식이 올바르지 않습니다. 다시 입력해주세요.")
             continue
         # 파일에 추가
         with student_path.open("a", encoding="utf-8", newline="\n") as f:
             f.write(f"{sid}/{pw}\n")
         students[sid] = pw
-        info("신규 회원 가입이 완료되었습니다.")
+        #info("신규 회원 가입이 완료되었습니다.")
         break
 
 
@@ -568,13 +624,12 @@ def prompt_password_new(student_path: Path, sid: str, students: Dict[str, str]) 
 # ---------------------------------------------------------------
 def show_main_menu() -> None:
     print()
-    print("================= 주 프롬프트 =================")
+    print("원하는 동작에 해당하는 번호를 입력하세요.")
     print("1) 영화 예매")
     print("2) 예매 내역 조회")
     print("3) 예매 취소")
     print("4) 상영 시간표 조회")
     print("0) 종료")
-    print("==============================================")
 
 
 def dispatch_menu(choice: str) -> None:
@@ -610,16 +665,16 @@ def main_prompt_loop() -> None:
     """6.3 주 프롬프트 — 입력 검증 및 분기"""
     while True:
         show_main_menu()
-        s = input("메뉴를 선택하세요 (1/2/3/4/0): ")
+        s = input("")
 
         # 문법 형식: 숫자만의 길이 1
         if not re.fullmatch(r"\d", s or ""):
-            error("문법 형식 위배: 한 자리 숫자만 입력하세요.")
+            info("올바르지 않은 입력입니다. 원하는 동작에 해당하는 번호만 입력하세요.")
             continue
 
         # 의미 규칙: {1,2,3,4,0}
         if s not in {"1", "2", "3", "4", "0"}:
-            error("의미 규칙 위배: 1,2,3,4,0 중 하나를 입력하세요.")
+            info("범위 밖의 입력입니다. 다시 입력해주세요.")
             continue
 
         if s == "0":
@@ -648,6 +703,9 @@ def main() -> None:
     # 0-3) 예매 데이터 파일 문법 검사 — 위배 행 전부 출력 후 종료
     validate_booking_syntax(booking_path)
 
+    # 0-4) 좌석 예약 벡터가 모두 0인 예매 레코드 제거(경고 후 삭제)
+    prune_zero_seat_bookings(booking_path)
+
     # 예매 데이터 파일 무결성 검사(의미 규칙)
     validate_all_booking_rules()
 
@@ -658,7 +716,7 @@ def main() -> None:
     # 2) 6.2 — 로그인 플로우
     while True:
         sid = prompt_student_id()  # 6.2.1
-        if not prompt_login_intent():  # 6.2.2 (부정이면 학번 입력 재시작)
+        if not prompt_login_intent(sid):  # 6.2.2 (부정이면 학번 입력 재시작)
             continue
 
         if sid in students:  # 기존 회원 → 6.2.3
@@ -668,7 +726,7 @@ def main() -> None:
                 continue
             # 정상 로그인
             LOGGED_IN_SID = sid
-            info(f"환영합니다, {LOGGED_IN_SID}님! 주 프롬프트로 이동합니다.")
+            info(f"{LOGGED_IN_SID} 님 환영합니다.")
             core.LOGGED_IN_SID = sid
             core.CURRENT_DATE_STR = CURRENT_DATE_STR
             break
@@ -676,7 +734,7 @@ def main() -> None:
             # 신규 회원 → 6.2.4
             prompt_password_new(student_path, sid, students)
             LOGGED_IN_SID = sid
-            info(f"환영합니다, {LOGGED_IN_SID}님! 주 프롬프트로 이동합니다.")
+            info(f"회원가입되었습니다. {LOGGED_IN_SID} 님 환영합니다.")
             core.LOGGED_IN_SID = sid
             core.CURRENT_DATE_STR = CURRENT_DATE_STR
             break
