@@ -242,7 +242,8 @@ def print_seat_board(seat_buffer: dict[str, int]) -> None:
             elif val == 1:
                 line.append("■")  # 이미 예매됨
             elif val == 2:
-                line.append("★")  # 현재 예매 중
+                #line.append("★")  # 현재 예매 중
+                line.append("■")  # 현재 예매 중
         print(" ", " ".join(line))
 
 # ---------------------------------------------------------------
