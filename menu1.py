@@ -423,3 +423,5 @@ def menu1():
     # 예매 데이터 파일 무결성 검사(의미 규칙)
     validate_all_booking_rules()
 
+    prune_zero_seat_bookings(booking_path)
+
