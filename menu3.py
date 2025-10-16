@@ -208,7 +208,9 @@ def confirm_cancelation(selected_booking: dict) -> None:
         save_records(movie_path, new_movie_lines)
 
         info("예매가 취소되었습니다.")
-        
+    else:
+        menu3()
+        return
     # 0-1) 학생 파일 최소 무결성 검사
     students = load_and_validate_students(student_path)
     
