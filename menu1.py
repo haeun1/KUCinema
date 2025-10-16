@@ -1,6 +1,6 @@
 import re
 import ast
-from KUCinema import MOVIE_FILE,BOOKING_FILE,STUDENT_FILE, info, error, home_path,validate_all_booking_rules,load_and_validate_students,validate_movie_file,validate_booking_syntax
+from KUCinema import MOVIE_FILE,BOOKING_FILE,STUDENT_FILE, info, error, home_path,validate_all_booking_rules,load_and_validate_students,validate_movie_file,validate_booking_syntax,prune_zero_seat_bookings
 import core
 from collections import defaultdict
 
