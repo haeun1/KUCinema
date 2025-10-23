@@ -165,12 +165,9 @@ def input_people(selected_movie: dict) -> int | None:
     movie_time = selected_movie["time"]
     movie_title = selected_movie["title"]
 
-    # 화면 출력
-    print(f"{movie_date} {movie_time} | 〈{movie_title}〉를 선택하셨습니다. 인원 수를 입력해주세요 (최대 4명):")
-
     # 입력 루프
     while True:
-        s = input("인원 수 입력 (0~4): ").strip()
+        s = input(f"{movie_date} {movie_time} | 〈{movie_title}〉를 선택하셨습니다. 인원 수를 입력해주세요 (최대 4명): ").strip()
 
         # --- 문법 형식 위배 ---
         if not re.fullmatch(r"\d", s or ""):
@@ -230,7 +227,7 @@ def print_seat_board(seat_buffer: dict[str, int]) -> None:
     """
     print("빈 사각형은 예매 가능한 좌석입니다.")
     print("   스크린")
-    print("  ", " ".join(str(c) for c in COLS))
+    print("   ", " ".join(str(c) for c in COLS))
 
     for row in ROWS:
         line = [f"{row}"]
@@ -298,8 +295,6 @@ def finalize_booking(selected_movie: dict, chosen_seats: list[str], student_id: 
         else:
             f.write(f"\n{student_id}/{movie_id}/[{booking_vec_str}]")
 
-    print("예매 내역이 movie-schedule.txt 및 booking-info.txt에 성공적으로 반영되었습니다.")
-
 def input_seats(selected_movie: dict, n: int) -> bool:
     """
     6.4.4 좌석 입력
@@ -366,7 +361,7 @@ def input_seats(selected_movie: dict, n: int) -> bool:
                 booking_path=booking_path,
             )
 
-            print(f"{', '.join(chosen_seats)} 자리 예매가 와료되었습니다. 주. 프롬프트로 돌아갑니다.")
+            print(f"{', '.join(chosen_seats)} 자리 예매가 완료되었습니다. 주 프롬프트로 돌아갑니다.")
             return True
 
 def menu1():
