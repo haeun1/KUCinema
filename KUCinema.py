@@ -582,7 +582,7 @@ def prompt_student_id() -> str:
 
 def prompt_login_intent(sid: str) -> bool:
     """6.2.2 로그인 의사 — 'Y'만 긍정, 나머지는 모두 부정"""
-    ans = input(f"{sid}님으로 로그인하시겠습니까? (Y/N) : ")
+    ans = input(f"{sid} 님으로 로그인하시겠습니까? (Y/N) : ")
     return ans == "Y"
 
 
