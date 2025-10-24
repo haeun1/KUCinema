@@ -178,7 +178,7 @@ def load_and_validate_students(student_path: Path) -> Dict[str, str]:
         students[sid] = pw
 
     if bad_lines:
-        error("데이터 파일\n{student_path}가 올바르지 않습니다! 프로그램을 종료합니다.")
+        error(f"데이터 파일\n{student_path}가 올바르지 않습니다! 프로그램을 종료합니다.")
         for li, content in bad_lines:
             #print(f"  - {li}행: {content!r}")
             print(f"{content}")
