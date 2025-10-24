@@ -491,8 +491,8 @@ def check_invalid_movie_id():
     if invalid_lines:
         #print("!!! 오류: 존재하지 않는 영화 고유번호를 참조하는 예매 레코드가 있습니다:")
         error(f"데이터 파일\n{booking_path}가 올바르지 않습니다!\n의미 규칙이 위반되었습니다. 프로그램을 종료합니다.")
-        for line in invalid_lines:
-            print(line)
+        #for line in invalid_lines:
+        #    print(line)
         #print("프로그램을 종료합니다.")
         sys.exit(1)
  
@@ -527,8 +527,8 @@ def check_invalid_student_id():
     if invalid_lines:
         #print("!!! 오류: 존재하지 않는 학번을 참조하는 예매 레코드가 있습니다:")
         error(f"데이터 파일\n{booking_path}가 올바르지 않습니다!\n의미 규칙이 위반되었습니다. 프로그램을 종료합니다.")
-        for line in invalid_lines:
-            print(line)
+        #for line in invalid_lines:
+        #    print(line)
         #print("프로그램을 종료합니다.")
         sys.exit(1)
 
