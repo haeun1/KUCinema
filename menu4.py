@@ -43,7 +43,7 @@ def menu4():
             })
 
     # 4. 결과 출력
-    print(f"\n--- 전체 상영 시간표 (기준일: {core.CURRENT_DATE_STR}) ---")
+    print(f"상영시간표 조회를 선택하셨습니다. 현재 조회 가능한 모든 상영 시간표를 출력합니다.")
     if not available_movies:
         print("예매 가능한 상영 정보가 없습니다.")
     else:
@@ -52,8 +52,8 @@ def menu4():
         for i, movie in enumerate(available_movies, 1):
             print(f"{i}) {movie['date']} {movie['time']} | {movie['title']}")
             
-    print("------------------------------------------")
-    input("확인하셨으면 Enter 키를 누르세요...")
+    print("모든 상영 시간표 출력이 완료되었습니다. 주 프롬프트로 돌아갑니다.")
+    
 
 
 
