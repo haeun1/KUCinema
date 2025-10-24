@@ -1045,8 +1045,19 @@ def select_cancelation(student_id: str) -> dict | None:
         movie_date = movie_id[0:4] + "-" + movie_id[4:6] + "-" + movie_id[6:8]
         if student_id == student_who_booked and movie_date > CURRENT_DATE_STR:
             for mline in movie_lines:
-                if movie_id in mline:
+                if not mline.strip():
+                    continue
+                movie_parts = mline.split("/", 1)
+                if not movie_parts:
+                    continue
+                line_movie_id = movie_parts[0].strip()
+
+                if movie_id == line_movie_id:
                     pm = parse_movie_record(mline)
+                    if pm is None:
+                        error(f"parse_movie_record 실패: {mline}")
+                        continue
+                    
                     bookings.append({
                         "movie_id": movie_id.strip(),
                         "seats": ast.literal_eval(seat_vec.strip()),
@@ -1058,7 +1069,8 @@ def select_cancelation(student_id: str) -> dict | None:
     if not bookings:
         info(f"{student_id}님의 예매 내역이 존재하지 않습니다. 주 프롬프트로 돌아갑니다.")
         return None
-    bookings.sort(key=lambda x: x["movie_id"])[:9]
+    bookings.sort(key=lambda x: x["movie_id"])
+    bookings = bookings[:9]
     n = len(bookings)
     info(f"{student_id}님의 예매 내역입니다.")
     seat_names = [f"{row}{col}" for row in "ABCDE" for col in range(1, 6)]
