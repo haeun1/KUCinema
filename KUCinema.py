@@ -892,6 +892,9 @@ def menu1() -> None:
 
     num_people = input_people(selected_movie)
     if num_people is None:
+        selected_movie = select_movie(selected_date)
+        if selected_movie is None:
+            return menu1()
         return menu1()
 
     seat_input_success = input_seats(selected_movie, num_people)
