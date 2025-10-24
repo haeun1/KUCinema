@@ -60,7 +60,7 @@ def select_date() -> str | None:
         s = input("원하는 날짜의 번호를 입력해주세요 : ").strip()
 
         # --- 문법 형식 위배 ---
-        if not re.fullmatch(r"\d", s or ""):
+        if not re.fullmatch(r"\d", s or "") or re.search(r"[A-Za-z]", s or ""):
             print("올바르지 않은 입력입니다. 원하는 날짜의 번호만 입력하세요.")
             continue
 
@@ -132,7 +132,7 @@ def select_movie(selected_date: str) -> dict | None:
         s = input("원하는 영화의 번호를 입력해주세요 : ").strip()
 
         # --- 문법 형식 위배 ---
-        if not re.fullmatch(r"\d", s or ""):
+        if not re.fullmatch(r"\d", s or "") or re.search(r"[A-Za-z]", s):
             print("올바르지 않은 입력입니다. 원하는 영화의 번호만 입력해주세요.")
             continue
 
@@ -170,7 +170,7 @@ def input_people(selected_movie: dict) -> int | None:
         s = input(f"{movie_date} {movie_time} | 〈{movie_title}〉를 선택하셨습니다. 인원 수를 입력해주세요 (최대 4명): ").strip()
 
         # --- 문법 형식 위배 ---
-        if not re.fullmatch(r"\d", s or ""):
+        if not re.fullmatch(r"\d", s or "") or re.search(r"[A-Za-z]", s):
             print("올바르지 않은 입력입니다. 한 자리 숫자만 입력하세요.")
             continue
 
@@ -323,7 +323,7 @@ def input_seats(selected_movie: dict, n: int) -> bool:
         s = input(f"{k + 1}번째로 예매할 좌석을 입력하세요. (예:A1): ").strip().upper()
 
         # --- 문법 형식 위배 ---
-        if not re.fullmatch(r"[A-E][1-5]", s):
+        if not re.fullmatch(r"[A-E][1-5]", s) or re.search(r"[가-힣]", s):
             print("올바르지 않은 입력입니다.")
             continue
 
