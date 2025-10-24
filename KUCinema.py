@@ -299,6 +299,13 @@ def validate_movie_file(movie_path: Path) -> None:
             error(f"영화 데이터 파일\n데이터 파일에 규칙에 위배되는 행이 존재합니다. 프로그램을 종료합니다.")
             sys.exit(1)
 
+        # 영화 상영표 고유번호가 같은 레코드의 날짜+시작시각에서 유도되었는지 검사
+        expected_mid = f"{dstr[0:4]}{dstr[5:7]}{dstr[8:10]}{tstr[0:2]}{tstr[3:5]}"
+        if mid != expected_mid:
+            #error(f"{MOVIE_FILE}:{i}행 — 고유번호가 날짜/시작시간에서 유도되지 않았습니다.")
+            error(f"영화 데이터 파일\n데이터 파일에 규칙에 위배되는 행이 존재합니다. 프로그램을 종료합니다.")
+            sys.exit(1)
+
         if _parse_seat_vector(vec) is None:
             #error(f"{MOVIE_FILE}:{i}행 — 좌석 유무 벡터 형식 오류(길이 25의 0/1 배열).")
             error(f"영화 데이터 파일\n데이터 파일에 규칙에 위배되는 행이 존재합니다. 프로그램을 종료합니다.")
@@ -614,8 +621,13 @@ def prompt_password_new(student_path: Path, sid: str, students: Dict[str, str]) 
             info("비밀번호의 형식이 올바르지 않습니다. 다시 입력해주세요.")
             continue
         # 파일에 추가
+        with student_path.open("r", encoding="utf-8") as f:
+            content = f.read()
         with student_path.open("a", encoding="utf-8", newline="\n") as f:
-            f.write(f"\n{sid}/{pw}")
+            if content:
+                f.write(f"\n{sid}/{pw}")
+            else:
+                f.write(f"{sid}/{pw}")
         students[sid] = pw
         #info("신규 회원 가입이 완료되었습니다.")
         break
