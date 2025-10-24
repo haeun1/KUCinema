@@ -35,7 +35,6 @@ from pathlib import Path
 from datetime import date
 from typing import Dict, Tuple, List
 from collections import defaultdict
-import core
 import ast
 
 
@@ -81,14 +80,14 @@ def error(msg: str) -> None:
 # 파일/환경 준비
 # ---------------------------------------------------------------
 def home_path() -> Path:
-    #hp = Path(os.path.expanduser("~")).resolve() # 홈 경로 반환
-    # try:
-    #     hp = Path(os.path.expanduser("~")).resolve()  # 홈 경로 반환
-    # except Exception as e:
-    #     error(f"홈 경로를 파악할 수 없습니다! 프로그램을 종료합니다. {e}")
-    #     sys.exit(1)
+    hp = Path(os.path.expanduser("~")).resolve() # 홈 경로 반환
+    try:
+        hp = Path(os.path.expanduser("~")).resolve()  # 홈 경로 반환
+    except Exception as e:
+        error(f"홈 경로를 파악할 수 없습니다! 프로그램을 종료합니다. {e}")
+        sys.exit(1)
     # 배포하기 전은 현재 경로인 KUCinema.py 파일의 경로를 반환
-    hp = Path(os.getcwd())
+    # hp = Path(os.getcwd())
     #print("현재 경로:", os.getcwd())
     return hp
 
@@ -623,6 +622,556 @@ def prompt_password_new(student_path: Path, sid: str, students: Dict[str, str]) 
 
 
 # ---------------------------------------------------------------
+# 메뉴 구현 (menu1 ~ menu4)
+# ---------------------------------------------------------------
+
+# ===== menu1: 영화 예매 =====
+# 기본 좌석 설정
+ROWS = ["A", "B", "C", "D", "E"]
+COLS = [1, 2, 3, 4, 5]
+
+def create_seat_buffer(seat_vector: list[int]) -> dict[str, int]:
+    """
+    영화의 좌석 유무 벡터(길이 25, 0/1)를 
+    {'A1':0, 'A2':1, ..., 'E5':1} 형태로 변환
+    """
+    seat_buffer: dict[str, int] = {}
+    idx = 0
+    for row in ROWS:
+        for col in COLS:
+            seat_id = f"{row}{col}"
+            seat_buffer[seat_id] = seat_vector[idx]
+            idx += 1
+    return seat_buffer
+
+def print_seat_board(seat_buffer: dict[str, int]) -> None:
+    """
+    좌석 버퍼를 기반으로 현재 좌석 상태를 콘솔에 시각화하여 출력
+    - '□' : 예매 가능 (0)
+    - '■' : 이미 예매됨 (1)
+    - '*' : 이번 예매에서 방금 선택한 좌석 (2)
+    """
+    print("빈 사각형은 예매 가능한 좌석입니다.")
+    print("   스크린")
+    print("   ", " ".join(str(c) for c in COLS))
+
+    for row in ROWS:
+        line: list[str] = [f"{row}"]
+        for col in COLS:
+            seat_id = f"{row}{col}"
+            val = seat_buffer[seat_id]
+            if val == 0:
+                line.append("□")  # 예매 가능
+            elif val == 1:
+                line.append("■")  # 이미 예매됨
+            elif val == 2:
+                #line.append("★")  # 현재 예매 중
+                line.append("■")  # 현재 예매 중
+        print(" ", " ".join(line))
+
+def select_date() -> str | None:
+    """
+    6.4.1 날짜 선택
+    - 영화 데이터 파일에서 현재 날짜 이후의 상영 날짜를 제시하고 선택을 받음
+    - 정상 입력 시 해당 날짜 문자열을 반환
+    - '0' 입력 시 None 반환 (주 프롬프트 복귀)
+    """
+    if CURRENT_DATE_STR is None:
+        error("내부 현재 날짜가 설정되어 있지 않습니다.")
+        return None
+
+    movie_path = home_path() / MOVIE_FILE
+    lines = movie_path.read_text(encoding="utf-8").splitlines()
+
+    dates: list[str] = []
+    for line in lines:
+        if not line.strip():
+            continue
+        parts = line.split("/")
+        if len(parts) < 5:
+            continue
+        _, _, movie_date, _, _ = parts
+        if movie_date > CURRENT_DATE_STR and movie_date not in dates:
+            dates.append(movie_date)
+
+    dates.sort()
+    dates = dates[:9]
+    n = len(dates)
+
+    print("영화예매를 선택하셨습니다. 아래는 예매 가능한 날짜 리스트입니다.")
+    if n == 0:
+        info("상영이 예정된 영화가 없습니다.")
+        return None
+
+    for i, d in enumerate(dates, start=1):
+        print(f"{i}) {d}")
+    print("0) 뒤로 가기")
+
+    while True:
+        s = input("원하는 날짜의 번호를 입력해주세요 : ").strip()
+        if not re.fullmatch(r"\d", s or "") or re.search(r"[A-Za-z]", s or ""):
+            print("올바르지 않은 입력입니다. 원하는 날짜의 번호만 입력하세요.")
+            continue
+        num = int(s)
+        if not (0 <= num <= n):
+            print("범위 밖의 입력입니다. 다시 입력해주세요.")
+            continue
+        if num == 0:
+            return None
+        return dates[num - 1]
+
+def select_movie(selected_date: str) -> dict | None:
+    """
+    6.4.2 영화 선택 — 입력받은 날짜의 영화를 시간순으로 제시하고 선택
+    """
+    movie_path = home_path() / MOVIE_FILE
+    lines = movie_path.read_text(encoding="utf-8").splitlines()
+
+    movies: list[dict] = []
+    for line in lines:
+        if not line.strip():
+            continue
+        parts = line.split("/")
+        if len(parts) < 5:
+            continue
+        movie_id, title, date_str, time_str, seat_vec = parts
+        if date_str.strip() == selected_date:
+            movies.append({
+                "id": movie_id.strip(),
+                "title": title.strip(),
+                "date": date_str.strip(),
+                "time": time_str.strip(),
+                "seats": ast.literal_eval(seat_vec.strip()),
+            })
+
+    def sort_key(m: dict) -> str:
+        return m["time"].split("-")[0]
+    movies.sort(key=sort_key)
+    n = len(movies)
+
+    print(f"{selected_date}의 상영시간표입니다.")
+    if n == 0:
+        info("해당 날짜에는 상영 중인 영화가 없습니다.")
+        return None
+
+    for i, m in enumerate(movies, start=1):
+        print(f"{i}) {m['date']} {m['time']} | {m['title']}")
+    print("0) 뒤로 가기")
+
+    while True:
+        s = input("원하는 영화의 번호를 입력해주세요 : ").strip()
+        if not re.fullmatch(r"\d", s or "") or re.search(r"[A-Za-z]", s):
+            print("올바르지 않은 입력입니다. 원하는 영화의 번호만 입력해주세요.")
+            continue
+        num = int(s)
+        if not (0 <= num <= n):
+            print("해당 번호의 영화가 존재하지 않습니다. 다시 입력해주세요.")
+            continue
+        if num == 0:
+            return None
+        return movies[num - 1]
+
+def input_people(selected_movie: dict) -> int | None:
+    """6.4.3 인원 수 입력 — 최대 4명, 0이면 이전 단계로"""
+    movie_date = selected_movie["date"]
+    movie_time = selected_movie["time"]
+    movie_title = selected_movie["title"]
+
+    while True:
+        s = input(f"{movie_date} {movie_time} | 〈{movie_title}〉를 선택하셨습니다. 인원 수를 입력해주세요 (최대 4명): ").strip()
+        if not re.fullmatch(r"\d", s or "") or re.search(r"[A-Za-z]", s):
+            print("올바르지 않은 입력입니다. 한 자리 숫자만 입력하세요.")
+            continue
+        n = int(s)
+        if not (0 <= n <= 4):
+            print("범위 밖의 입력입니다. 다시 입력해주세요.")
+            continue
+        if n == 0:
+            return None
+        return n
+
+def finalize_booking(selected_movie: dict, chosen_seats: list[str], student_id: str,
+                     movie_path: Path, booking_path: Path) -> None:
+    movie_id = selected_movie["id"]
+    # 이번 예매의 좌석 벡터 만들기 (내가 선택한 좌석만 1)
+    new_booking_vector = [0] * 25
+    for seat in chosen_seats:
+        row_idx = ROWS.index(seat[0])
+        col_idx = int(seat[1]) - 1
+        new_booking_vector[row_idx * 5 + col_idx] = 1
+
+    # movie-schedule.txt 업데이트 (기존 1 유지 + 새 1 추가)
+    lines = movie_path.read_text(encoding="utf-8").splitlines()
+    updated_lines: list[str] = []
+    for line in lines:
+        parts = line.strip().split("/")
+        if len(parts) < 5:
+            updated_lines.append(line)
+            continue
+        movie_id_in_file = parts[0].strip()
+        if movie_id_in_file == movie_id:
+            seats = ast.literal_eval(parts[-1])
+            for i in range(25):
+                seats[i] = 1 if (seats[i] == 1 or new_booking_vector[i] == 1) else 0
+            parts[-1] = "[" + ",".join(map(str, seats)) + "]"
+            updated_line = "/".join(parts)
+            updated_lines.append(updated_line)
+        else:
+            updated_lines.append(line)
+    movie_path.write_text("\n".join(updated_lines), encoding="utf-8")
+
+    # booking-info.txt에 새로운 예매 레코드 추가
+    with open(booking_path, "a+", encoding="utf-8") as f:
+        f.seek(0)
+        is_empty = (f.read().strip() == "")
+        booking_vec_str = ",".join(map(str, new_booking_vector))
+        if is_empty:
+            f.write(f"{student_id}/{movie_id}/[{booking_vec_str}]")
+        else:
+            f.write(f"\n{student_id}/{movie_id}/[{booking_vec_str}]")
+
+def input_seats(selected_movie: dict, n: int) -> bool:
+    """
+    6.4.4 좌석 입력 — 좌석 문법/예매 가능 여부/중복 검사 후 선택 처리
+    """
+    seat_vector = selected_movie["seats"]
+    seat_buffer = create_seat_buffer(seat_vector)
+    print_seat_board(seat_buffer)
+    print()
+
+    chosen_seats: list[str] = []
+    k = 0
+    while k < n:
+        s = input(f"{k + 1}번째로 예매할 좌석을 입력하세요. (예:A1): ").strip().upper()
+        if not re.fullmatch(r"[A-E][1-5]", s) or re.search(r"[가-힣]", s):
+            print("올바르지 않은 입력입니다.")
+            continue
+        if seat_buffer[s] == 1:
+            print("이미 예매된 좌석입니다.")
+            continue
+        if s in chosen_seats:
+            print("동일 좌석 중복 선택은 불가능합니다.")
+            continue
+        seat_buffer[s] = 2
+        chosen_seats.append(s)
+        k += 1
+        if k < n:
+            print()
+            print_seat_board(seat_buffer)
+            print()
+            continue
+        else:
+            movie_path = home_path() / MOVIE_FILE
+            booking_path = home_path() / BOOKING_FILE
+            finalize_booking(
+                selected_movie=selected_movie,
+                chosen_seats=chosen_seats,
+                student_id=LOGGED_IN_SID,
+                movie_path=movie_path,
+                booking_path=booking_path,
+            )
+            print(f"{', '.join(chosen_seats)} 자리 예매가 완료되었습니다. 주 프롬프트로 돌아갑니다.")
+            return True
+
+def menu1() -> None:
+    movie_path = home_path() / MOVIE_FILE
+    student_path = home_path() / STUDENT_FILE
+    booking_path = home_path() / BOOKING_FILE
+
+    if LOGGED_IN_SID is None:
+        error("로그인 정보가 없습니다. 주 프롬프트로 돌아갑니다.")
+        return
+
+    selected_date = select_date()
+    if selected_date is None:
+        return
+
+    selected_movie = select_movie(selected_date)
+    if selected_movie is None:
+        return menu1()
+
+    num_people = input_people(selected_movie)
+    if num_people is None:
+        return menu1()
+
+    seat_input_success = input_seats(selected_movie, num_people)
+    if not seat_input_success:
+        return menu1()
+
+    # 예매 후 데이터 재검증
+    _ = load_and_validate_students(student_path)
+    validate_movie_file(movie_path)
+    validate_booking_syntax(booking_path)
+    validate_all_booking_rules()
+    prune_zero_seat_bookings(booking_path)
+
+
+# ===== menu2: 예매 내역 조회 =====
+def get_movie_details() -> dict[str, dict]:
+    movie_path = home_path() / MOVIE_FILE
+    lines = movie_path.read_text(encoding="utf-8").splitlines()
+    details: dict[str, dict] = {}
+    for line in lines:
+        if not line.strip():
+            continue
+        parts = line.split('/')
+        if len(parts) == 5:
+            movie_id = parts[0].strip()
+            title = parts[1].strip()
+            date_str = parts[2].strip()
+            time_str = parts[3].strip()
+            details[movie_id] = {"title": title, "date": date_str, "time": time_str}
+    return details
+
+def vector_to_seats(vector: list[int]) -> list[str]:
+    booked_seats: list[str] = []
+    for i, status in enumerate(vector):
+        if status == 1:
+            row = ROWS[i // 5]
+            col = COLS[i % 5]
+            booked_seats.append(f"{row}{col}")
+    return booked_seats
+
+def menu2() -> None:
+    """
+    6.3.2 예매 내역 조회 — 현재 로그인 사용자의 '지나가지 않은' 예매 내역 출력
+    """
+    if not LOGGED_IN_SID:
+        error("로그인 정보가 없습니다. 먼저 로그인해주세요.")
+        return
+    if not CURRENT_DATE_STR:
+        error("가상 현재 날짜가 설정되지 않았습니다.")
+        return
+    booking_path = home_path() / BOOKING_FILE
+    movie_details = get_movie_details()
+    try:
+        lines = booking_path.read_text(encoding="utf-8").splitlines()
+    except FileNotFoundError:
+        error(f"'{BOOKING_FILE}' 파일을 찾을 수 없습니다.")
+        return
+    user_bookings: list[dict] = []
+    for line in lines:
+        if not line.strip():
+            continue
+        parts = line.split('/')
+        if len(parts) == 3 and parts[0].strip() == LOGGED_IN_SID:
+            movie_id = parts[1].strip()
+            if movie_id not in movie_details:
+                continue
+            movie_info = movie_details[movie_id]
+            movie_date = movie_info["date"]
+            if movie_date < CURRENT_DATE_STR:
+                continue
+            vector_str = parts[2].strip()
+            seat_vector = ast.literal_eval(vector_str)
+            user_bookings.append({
+                "title": movie_info["title"],
+                "date": movie_date,
+                "time": movie_info["time"],
+                "seats": vector_to_seats(seat_vector),
+            })
+    print(f"\n{LOGGED_IN_SID} 님의 예매 내역입니다.")
+    if not user_bookings:
+        print(f"{LOGGED_IN_SID} 님의 예매 내역이 존재하지 않습니다. 주 프롬프트로 돌아갑니다.")
+    else:
+        user_bookings.sort(key=lambda b: (b['date'], b['time']))
+        for i, booking in enumerate(user_bookings, 1):
+            seat_list_str = ", ".join(booking["seats"])
+            print(f"{i}) {booking['date']} {booking['time']} | {booking['title']} | 좌석: {seat_list_str}")
+    print("주 프롬프트로 돌아갑니다.")
+
+
+# ===== menu3: 예매 취소 =====
+def load_records(path: Path) -> list[str]:
+    if not path.exists():
+        return []
+    return path.read_text(encoding="utf-8").splitlines()
+
+def parse_movie_record(line: str) -> dict:
+    uid, title, ddate, ttime, seats = line.split("/", 4)
+    return {
+        "uid": uid.strip(),
+        "title": title.strip(),
+        "date": ddate.strip(),
+        "time": ttime.strip(),
+        "seats": ast.literal_eval(seats.strip()),
+    }
+
+def parse_booking_record(line: str) -> dict:
+    sid, uid, seats = line.split("/", 2)
+    return {"sid": sid.strip(), "uid": uid.strip(), "seats": ast.literal_eval(seats.strip())}
+
+def save_records(path: Path, records: list[str]) -> None:
+    with path.open("w", encoding="utf-8") as f:
+        for i, line in enumerate(records):
+            line = line.strip()
+            if i < len(records) - 1:
+                f.write(line + "\n")
+            else:
+                f.write(line)
+
+def select_cancelation(student_id: str) -> dict | None:
+    if CURRENT_DATE_STR is None:
+        error("내부 현재 날짜가 설정되어 있지 않습니다.")
+        return None
+    booking_path = home_path() / BOOKING_FILE
+    movie_path = home_path() / MOVIE_FILE
+    booking_lines = booking_path.read_text(encoding="utf-8").splitlines()
+    movie_lines = movie_path.read_text(encoding="utf-8").splitlines()
+
+    bookings: list[dict] = []
+    for line in booking_lines:
+        if not line.strip():
+            continue
+        parts = line.split("/", 2)
+        if len(parts) < 3:
+            continue
+        student_who_booked, movie_id, seat_vec = parts
+        movie_date = movie_id[0:4] + "-" + movie_id[4:6] + "-" + movie_id[6:8]
+        if student_id == student_who_booked and movie_date > CURRENT_DATE_STR:
+            for mline in movie_lines:
+                if movie_id in mline:
+                    pm = parse_movie_record(mline)
+                    bookings.append({
+                        "movie_id": movie_id.strip(),
+                        "seats": ast.literal_eval(seat_vec.strip()),
+                        "title": pm["title"],
+                        "date": pm["date"],
+                        "time": pm["time"],
+                    })
+                    break
+    if not bookings:
+        info(f"{student_id}님의 예매 내역이 존재하지 않습니다. 주 프롬프트로 돌아갑니다.")
+        return None
+    bookings.sort(key=lambda x: x["movie_id"])[:9]
+    n = len(bookings)
+    info(f"{student_id}님의 예매 내역입니다.")
+    seat_names = [f"{row}{col}" for row in "ABCDE" for col in range(1, 6)]
+    for i, d in enumerate(bookings, start=1):
+        booked = [seat_names[idx] for idx, v in enumerate(d['seats']) if v == 1]
+        seat_str = " ".join(booked) if booked else "(예매된 좌석 없음)"
+        print(f"{i}) {d['date']} {d['time']} | {d['title']} | {seat_str}")
+    print("0) 뒤로 가기")
+    while True:
+        s = input("예매를 취소할 내역을 선택해주세요. (번호로 입력) : ").strip()
+        if not re.fullmatch(r"\d", s):
+            print("올바르지 않은 입력입니다. 취소할 내역의 번호만 입력하세요.")
+            continue
+        num = int(s)
+        if not (0 <= num <= n):
+            print("범위 밖의 입력입니다. 다시 입력해주세요.")
+            continue
+        if num == 0:
+            return None
+        return bookings[num - 1]
+
+def confirm_cancelation(selected_booking: dict) -> None:
+    movie_path = home_path() / MOVIE_FILE
+    booking_path = home_path() / BOOKING_FILE
+
+    seat_names = [f"{row}{col}" for row in "ABCDE" for col in range(1, 6)]
+    seats = selected_booking.get('seats', [])
+    if not seats:
+        print("(예매된 좌석 없음)")
+        return
+    booked = [seat_names[idx] for idx, v in enumerate(seats) if v == 1]
+    seat_str = " ".join(booked) if booked else "(예매된 좌석 없음)"
+    n = input(f"{selected_booking['date']} {selected_booking['time']} | {selected_booking['title']} | {seat_str}의 예매를 취소하겠습니까? (Y/N) : ")
+    if n == 'Y':
+        booking_lines = booking_path.read_text(encoding="utf-8").splitlines()
+        movie_lines = movie_path.read_text(encoding="utf-8").splitlines()
+        new_booking_lines: list[str] = []
+        for line in booking_lines:
+            if not line.strip():
+                continue
+            parts = line.split("/")
+            if len(parts) < 3:
+                continue
+            student_who_booked, movie_id, seat_vec = parts
+            if (student_who_booked == LOGGED_IN_SID and 
+                movie_id == selected_booking['movie_id'] and 
+                ast.literal_eval(seat_vec.strip()) == selected_booking['seats']):
+                continue
+            new_booking_lines.append(line)
+        new_movie_lines: list[str] = []
+        for line in movie_lines:
+            if not line.strip():
+                continue
+            parts = line.split("/", 4)
+            if len(parts) < 5:
+                continue
+            uid, title, ddate, ttime, seats = parts
+            if uid == selected_booking['movie_id']:
+                current_seats = ast.literal_eval(seats.strip())
+                restored_seats = [max(0, cs - ss) for cs, ss in zip(current_seats, selected_booking['seats'])]
+                seat_str2 = "[" + ",".join(map(str, restored_seats)) + "]"
+                new_line = f"{uid}/{title}/{ddate}/{ttime}/{seat_str2}"
+                new_movie_lines.append(new_line)
+            else:
+                new_movie_lines.append(line)
+        save_records(booking_path, new_booking_lines)
+        save_records(movie_path, new_movie_lines)
+        info("예매가 취소되었습니다.")
+    else:
+        menu3()
+        return
+
+def menu3() -> None:
+    movie_path = home_path() / MOVIE_FILE
+    student_path = home_path() / STUDENT_FILE
+    booking_path = home_path() / BOOKING_FILE
+    if LOGGED_IN_SID is None:
+        error("로그인 정보가 없습니다. 주 프롬프트로 돌아갑니다.")
+        return
+    selected_cancelation = select_cancelation(LOGGED_IN_SID)
+    if selected_cancelation is None:
+        return
+    confirm_cancelation(selected_cancelation)
+    _ = load_and_validate_students(student_path)
+    validate_movie_file(movie_path)
+    validate_booking_syntax(booking_path)
+    validate_all_booking_rules()
+    prune_zero_seat_bookings(booking_path)
+
+
+# ===== menu4: 상영 시간표 조회 =====
+def menu4() -> None:
+    """
+    6.3.4 상영 시간표 조회 — 현재 날짜 이후 상영 시간표 출력
+    """
+    if not CURRENT_DATE_STR:
+        error("가상 현재 날짜가 설정되지 않았습니다. 프로그램을 다시 시작해주세요.")
+        return
+    movie_path = home_path() / MOVIE_FILE
+    try:
+        lines = movie_path.read_text(encoding="utf-8").splitlines()
+    except FileNotFoundError:
+        error(f"'{MOVIE_FILE}' 파일을 찾을 수 없습니다.")
+        return
+    available_movies: list[dict] = []
+    for line in lines:
+        if not line.strip():
+            continue
+        parts = line.split('/')
+        if len(parts) == 5:
+            movie_date = parts[2].strip()
+            if movie_date < CURRENT_DATE_STR:
+                continue
+            available_movies.append({
+                "date": movie_date,
+                "time": parts[3].strip(),
+                "title": parts[1].strip(),
+            })
+    print(f"상영시간표 조회를 선택하셨습니다. 현재 조회 가능한 모든 상영 시간표를 출력합니다.")
+    if not available_movies:
+        print("상영이 예정된 영화가 없습니다.")
+    else:
+        available_movies.sort(key=lambda m: (m['date'], m['time']))
+        for i, movie in enumerate(available_movies, 1):
+            print(f"{i}) {movie['date']} {movie['time']} | {movie['title']}")
+    print("모든 상영 시간표 출력이 완료되었습니다. 주 프롬프트로 돌아갑니다.")
+
+# ---------------------------------------------------------------
 # 주 프롬프트(6.3) & 메뉴 디스패치
 # ---------------------------------------------------------------
 def show_main_menu() -> None:
@@ -636,28 +1185,19 @@ def show_main_menu() -> None:
 
 
 def dispatch_menu(choice: str) -> None:
-    """외부 모듈(menu1~menu4)의 동일 함수(menu1~menu4)를 호출.
-    모듈/함수 미존재 시 오류 메시지 후 복귀.
-    """
-    module_name = f"menu{choice}"
-    func_name = f"menu{choice}"
-
-    try:
-        mod = __import__(module_name)
-    except Exception as e:
-        error(f"메뉴 모듈 '{module_name}.py'을(를) 불러올 수 없습니다: {e}")
+    """동일 파일 내의 menu1~menu4 함수를 직접 호출."""
+    mapping = {
+        "1": menu1,
+        "2": menu2,
+        "3": menu3,
+        "4": menu4,
+    }
+    func = mapping.get(choice)
+    if func is None:
+        error("잘못된 메뉴 선택입니다.")
         return
-
-    func = getattr(mod, func_name, None)
-    if not callable(func):
-        error(f"'{module_name}.py' 안에 함수 '{func_name}()'가 없습니다.")
-        return
-
     try:
-        # 기획서/요청: menu1() 식으로 인자 없이 호출
         func()
-    except TypeError as te:
-        error(f"함수 호출 형식 오류: {module_name}.{func_name}(): {te}")
     except SystemExit:
         raise
     except Exception as e:
@@ -731,16 +1271,12 @@ def main() -> None:
             # 정상 로그인
             LOGGED_IN_SID = sid
             info(f"{LOGGED_IN_SID} 님 환영합니다.")
-            core.LOGGED_IN_SID = sid
-            core.CURRENT_DATE_STR = CURRENT_DATE_STR
             break
         else:
             # 신규 회원 → 6.2.4
             prompt_password_new(student_path, sid, students)
             LOGGED_IN_SID = sid
             info(f"회원가입되었습니다. {LOGGED_IN_SID} 님 환영합니다.")
-            core.LOGGED_IN_SID = sid
-            core.CURRENT_DATE_STR = CURRENT_DATE_STR
             break
 
     # 3) 6.3 — 주 프롬프트
