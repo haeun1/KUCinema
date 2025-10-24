@@ -547,6 +547,9 @@ def is_valid_date_string(s: str) -> bool:
         return False  # 연도 첫 자리는 0 불가
     y, m, d = int(s[0:4]), int(s[5:7]), int(s[8:10])
     try:
+        # 그레고리력 시작일(1582년 10월 15일) 이전의 날짜는 거부
+        if y < 1582 or (y == 1582 and m < 10) or (y == 1582 and m == 10 and d < 15):
+            return False
         date(y, m, d)
     except ValueError:
         return False
