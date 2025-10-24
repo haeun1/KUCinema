@@ -104,9 +104,9 @@ def menu2():
             })
 
     # 6. 결과 출력
-    print(f"\n{core.LOGGED_IN_SID} 님의 예매 내역입니다.")
+    print(f"\n<{core.LOGGED_IN_SID}> 님의 예매 내역입니다.")
     if not user_bookings:
-        print("{core.LOGGED_IN_SID} 님의 예매 내역이 존재하지 않습니다. 주 프롬프트로 돌아갑니다.")
+        print(f"<{core.LOGGED_IN_SID}> 님의 예매 내역이 존재하지 않습니다. 주 프롬프트로 돌아갑니다.")
     else:
         # 날짜와 시간 순으로 정렬하여 출력
         user_bookings.sort(key=lambda b: (b['date'], b['time']))
