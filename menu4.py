@@ -45,7 +45,7 @@ def menu4():
     # 4. 결과 출력
     print(f"상영시간표 조회를 선택하셨습니다. 현재 조회 가능한 모든 상영 시간표를 출력합니다.")
     if not available_movies:
-        print("예매 가능한 상영 정보가 없습니다.")
+        print("상영이 예정된 영화가 없습니다.")
     else:
         # 날짜와 시간 순으로 정렬하여 출력
         available_movies.sort(key=lambda m: (m['date'], m['time']))
