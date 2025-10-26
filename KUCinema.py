@@ -894,31 +894,37 @@ def menu1() -> None:
         error("로그인 정보가 없습니다. 주 프롬프트로 돌아갑니다.")
         return
 
-    selected_date = select_date()
-    if selected_date is None:
-        return
+    # 1️⃣ 날짜 선택
+    while True:
+        selected_date = select_date()
+        if selected_date is None:
+            return  # 완전히 종료
 
-    selected_movie = select_movie(selected_date)
-    if selected_movie is None:
-        return menu1()
+        # 2️⃣ 영화 선택
+        while True:
+            selected_movie = select_movie(selected_date)
+            if selected_movie is None:
+                break  # 날짜 선택으로 돌아가기
 
-    num_people = input_people(selected_movie)
-    if num_people is None:
-        selected_movie = select_movie(selected_date)
-        if selected_movie is None:
-            return menu1()
-        return menu1()
+            # 3️⃣ 인원 수 입력
+            while True:
+                num_people = input_people(selected_movie)
+                if num_people is None:
+                    break  # 영화 선택으로 돌아가기
 
-    seat_input_success = input_seats(selected_movie, num_people)
-    if not seat_input_success:
-        return menu1()
+                # 4️⃣ 좌석 선택
+                seat_input_success = input_seats(selected_movie, num_people)
+                if not seat_input_success:
+                    # 좌석 선택 실패 → 인원 수 입력으로 돌아감
+                    continue  
 
-    # 예매 후 데이터 재검증
-    _ = load_and_validate_students(student_path)
-    validate_movie_file(movie_path)
-    validate_booking_syntax(booking_path)
-    validate_all_booking_rules()
-    prune_zero_seat_bookings(booking_path)
+                # 예매 성공 시 검증
+                _ = load_and_validate_students(student_path)
+                validate_movie_file(movie_path)
+                validate_booking_syntax(booking_path)
+                validate_all_booking_rules()
+                prune_zero_seat_bookings(booking_path)
+                return  # 모든 과정 완료 → 함수 종료
 
 
 # ===== menu2: 예매 내역 조회 =====
@@ -1143,6 +1149,12 @@ def confirm_cancelation(selected_booking: dict) -> None:
         menu3()
         return
 
+    validate_booking_syntax(booking_path)
+    validate_all_booking_rules()
+    prune_zero_seat_bookings(booking_path)
+    # 6.6.1 재실행
+    menu3()
+
 def menu3() -> None:
     movie_path = home_path() / MOVIE_FILE
     student_path = home_path() / STUDENT_FILE
@@ -1154,6 +1166,7 @@ def menu3() -> None:
     if selected_cancelation is None:
         return
     confirm_cancelation(selected_cancelation)
+    
     _ = load_and_validate_students(student_path)
     validate_movie_file(movie_path)
     validate_booking_syntax(booking_path)
