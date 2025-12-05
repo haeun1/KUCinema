@@ -1,4 +1,4 @@
-# KUCinema 프로젝트 한글 README.md
+# KUCinema 프로젝트
 
 ---
 
